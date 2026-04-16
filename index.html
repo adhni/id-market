@@ -8,176 +8,207 @@
 </head>
 <body>
   <div class="app-shell">
-    <header class="topbar">
-      <div class="topbar-copy">
-        <p class="eyebrow">Monthly market sandbox</p>
-        <h1>Indonesia Market Sandbox</h1>
-        <p class="sub">Compare a small set of Indonesian stocks against the US dollar, gold, and oil using only the bundled monthly dataset.</p>
-        <div class="header-notes">
-          <span>Static site</span>
-          <span>No live APIs</span>
-          <span>GitHub Pages friendly</span>
+    <header class="topbar panel">
+      <div class="topbar-copy compact">
+        <div class="title-row">
+          <h1>Indonesia Market Sandbox</h1>
+          <div class="pill">2019-07 to 2025-02</div>
         </div>
       </div>
-      <div class="pill">2019-07 to 2025-02</div>
     </header>
 
-    <section class="intro-grid">
-      <article class="panel intro-card">
-        <p class="kicker">How To Read It</p>
-        <h2>Start with growth mode, then switch context.</h2>
-        <p class="muted">Growth mode rebases every selected line to 100 at the chosen start month. Price mode shows raw monthly values. Relative mode shows whether a stock beat or lagged the chosen benchmark over the same window.</p>
-      </article>
-      <article class="panel intro-card">
-        <p class="kicker">What’s In Scope</p>
-        <h2>Playful comparison, not precision trading analysis.</h2>
-        <p class="muted">The app intentionally keeps the dataset small and monthly. Mixed units are allowed in price mode for exploration, but growth and relative mode are the cleanest views for comparison.</p>
-      </article>
-    </section>
-
-    <main class="layout">
-      <aside class="panel controls">
-        <div class="control-block onboarding-block">
-          <p class="kicker">Workflow</p>
-          <ol class="mini-steps">
-            <li>Pick one or more series.</li>
-            <li>Choose a view mode.</li>
-            <li>Adjust the time window or benchmark.</li>
-          </ol>
-        </div>
-
-        <div class="control-block">
-          <div class="label-row">
-            <label>Series</label>
-            <button id="resetSelections" class="link-btn" type="button">Reset</button>
-          </div>
-          <p class="helper">Monthly stock, FX, and commodity series from the local data pack only.</p>
-          <input id="seriesSearch" class="search-input" type="search" placeholder="Search ticker, name, or sector" aria-label="Search series" />
-          <div class="preset-row" id="presetButtons">
-            <button type="button" data-preset="default">Starter</button>
-            <button type="button" data-preset="banks">Banks</button>
-            <button type="button" data-preset="commodities">Commodities</button>
-            <button type="button" data-preset="benchmarks">Benchmarks</button>
-            <button type="button" data-preset="clear">Clear</button>
-          </div>
-          <div id="selectedChips" class="selected-chips"></div>
-          <div id="seriesList" class="series-list"></div>
-        </div>
-
-        <div class="control-block">
-          <div class="label-row">
-            <label for="modeSelect">Y-axis view</label>
-            <button class="info-dot" type="button" aria-label="About Y-axis modes" data-tooltip="Growth rebases to 100, Price shows raw values, Relative compares performance against the selected benchmark.">?</button>
-          </div>
-          <select id="modeSelect">
-            <option value="growth">Growth since start</option>
-            <option value="price">Price</option>
-            <option value="relative">Performance vs benchmark</option>
-          </select>
-          <p id="modeHelp" class="helper"></p>
-        </div>
-
-        <div class="control-block" id="benchmarkBlock">
-          <div class="label-row">
-            <label for="benchmarkSelect">Benchmark</label>
-            <button class="info-dot" type="button" aria-label="About benchmarks" data-tooltip="Benchmarks only affect relative mode. The benchmark itself is not plotted as a separate line in that view.">?</button>
-          </div>
-          <select id="benchmarkSelect"></select>
-          <p class="helper">Used only in Performance vs benchmark mode.</p>
-        </div>
-
-        <div class="control-block">
-          <label>Timeframe</label>
-          <div class="timeframe-buttons" id="timeframeButtons">
-            <button type="button" data-range="1Y">1Y</button>
-            <button type="button" data-range="3Y">3Y</button>
-            <button type="button" data-range="5Y">5Y</button>
-            <button type="button" data-range="MAX" class="active">Max</button>
-          </div>
-        </div>
-
-        <div class="control-block range-grid">
-          <div>
-            <label for="startDate">Start</label>
-            <select id="startDate"></select>
-          </div>
-          <div>
-            <label for="endDate">End</label>
-            <select id="endDate"></select>
-          </div>
-        </div>
-      </aside>
-
+    <main class="guided-layout">
       <section class="main-column">
-        <section class="panel hero-stats">
-          <div>
-            <p class="stat-label">X-axis</p>
-            <p class="stat-value">Month</p>
-          </div>
-          <div>
-            <p class="stat-label">Y-axis</p>
-            <p class="stat-value" id="yAxisLabel">Index (Start = 100)</p>
-          </div>
-          <div>
-            <p class="stat-label">Coverage</p>
-            <p class="stat-value" id="coverageText">2019-07 to 2025-02</p>
-          </div>
+        <section class="panel action-board compact-board">
+        <div class="control-strip">
+          <article class="control-card mode-card">
+            <div class="card-head compact">
+              <div>
+                <h3>View mode</h3>
+              </div>
+              <button class="info-dot" type="button" aria-label="About Y-axis modes" data-tooltip="Growth rebases to 100, Price shows raw values, Relative compares performance against the selected benchmark.">?</button>
+            </div>
+            <div id="modeButtons" class="mode-buttons" role="tablist" aria-label="Y-axis view">
+              <button type="button" class="mode-button" data-mode="growth" aria-pressed="false">
+                <strong>Growth</strong>
+              </button>
+              <button type="button" class="mode-button active" data-mode="price" aria-pressed="true">
+                <strong>Price</strong>
+              </button>
+              <button type="button" class="mode-button" data-mode="relative" aria-pressed="false">
+                <strong>Vs benchmark</strong>
+              </button>
+            </div>
+            <select id="modeSelect" class="visually-hidden" aria-hidden="true" tabindex="-1">
+              <option value="growth">Growth since start</option>
+              <option value="price">Price</option>
+              <option value="relative">Performance vs benchmark</option>
+            </select>
+          </article>
+
+          <article class="control-card tune-card">
+            <div class="control-cluster">
+              <label>Timeframe</label>
+              <div class="timeframe-buttons" id="timeframeButtons">
+                <button type="button" data-range="1Y">1Y</button>
+                <button type="button" data-range="3Y" class="active">3Y</button>
+                <button type="button" data-range="5Y">5Y</button>
+                <button type="button" data-range="MAX">Max</button>
+              </div>
+            </div>
+          </article>
+        </div>
         </section>
 
-        <section class="panel snapshot-bar" id="snapshotBar">
+        <section class="panel chart-panel">
+          <div class="chart-range-shell" id="chartRangeShell">
+            <div class="label-row">
+              <label for="rangeStart">Date range</label>
+              <span id="rangeWindowLabel" class="month-window-value">Jul 2019 to Feb 2025 (68 mo)</span>
+            </div>
+            <div class="date-range-slider">
+              <div class="slider-track" aria-hidden="true"></div>
+              <div class="slider-fill" id="dateRangeFill" aria-hidden="true"></div>
+              <input id="rangeStart" type="range" min="0" max="100" step="1" value="0" aria-label="Set start month" />
+              <input id="rangeEnd" type="range" min="0" max="100" step="1" value="100" aria-label="Set end month" />
+            </div>
+            <div class="range-months">
+              <span id="rangeStartLabel">Jul 2019</span>
+              <span id="rangeEndLabel">Feb 2025</span>
+            </div>
+          </div>
+
+          <div class="chart-head">
+            <div>
+              <h2 id="chartTitle">Price</h2>
+              <p id="chartSubtitle" class="muted">Monthly stock prices converted to US Dollar (USD).</p>
+              <p id="yAxisExplain" class="y-axis-explain">Y-axis = stock value in US Dollar (USD).</p>
+            </div>
+            <div class="chart-head-side">
+              <div class="chart-controls-row">
+                <div class="chart-benchmark-control" id="benchmarkBlock">
+                  <label for="benchmarkSelect" class="chart-control-label">Y-axis Reference</label>
+                  <select id="benchmarkSelect" aria-label="Choose comparison reference">
+                  </select>
+                </div>
+                <div class="chart-stock-control" id="chartStockControl">
+                  <label class="chart-control-label" for="stockToggleSearch">Stocks</label>
+                  <details class="stock-toggle-dropdown" id="stockToggleDropdown">
+                    <summary id="stockToggleSummary">3 selected</summary>
+                    <div class="stock-toggle-panel">
+                      <input id="stockToggleSearch" class="search-input" type="search" placeholder="Find ticker or company" aria-label="Search stocks" />
+                      <div id="stockToggleList" class="stock-toggle-list"></div>
+                    </div>
+                  </details>
+                </div>
+              </div>
+              <div id="legend" class="legend"></div>
+            </div>
+          </div>
+          <div class="chart-stage" id="chartStage">
+            <svg id="chart" viewBox="0 0 1100 520" preserveAspectRatio="xMidYMid meet" aria-label="Line chart"></svg>
+            <div id="chartTooltip" class="chart-tooltip" aria-hidden="true"></div>
+            <div id="chartEmptyState" class="chart-empty hidden"></div>
+          </div>
+          <p class="chart-hint muted" id="chartReadingHint">Priced in US Dollar (USD)</p>
+          <p id="chartFootnote" class="chart-footnote muted">All values come from the bundled monthly files. Hover or tap inside the chart to inspect a month.</p>
+        </section>
+
+        <section class="panel snapshot-bar compact-metrics" id="snapshotBar">
           <div class="snapshot-item">
-            <p class="stat-label">Selected</p>
-            <p class="snapshot-value" id="selectedCount">4 series</p>
+            <p class="stat-label">Y-axis</p>
+            <p class="snapshot-value" id="yAxisLabel">Price (USD)</p>
           </div>
           <div class="snapshot-item">
-            <p class="stat-label">Benchmark</p>
+            <p class="stat-label">Selected</p>
+            <p class="snapshot-value" id="selectedCount">3 lines</p>
+          </div>
+          <div class="snapshot-item">
+            <p class="stat-label">Reference</p>
             <p class="snapshot-value" id="activeBenchmark">US Dollar</p>
           </div>
           <div class="snapshot-item">
             <p class="stat-label">Window</p>
             <p class="snapshot-value" id="windowMonths">68 months</p>
-          </div>
-          <div class="snapshot-item">
-            <p class="stat-label">Reading aid</p>
-            <p class="snapshot-value" id="chartReadingHint">Hover the chart for monthly detail</p>
+            <p class="metric-sub muted" id="coverageText">2019-07 to 2025-02</p>
           </div>
         </section>
 
-        <section class="panel chart-panel">
-          <div class="chart-head">
-            <div>
-              <h2 id="chartTitle">Growth since start</h2>
-              <p id="chartSubtitle" class="muted">All selected series rebased to 100 at the chosen start date.</p>
+        <section class="panel compact-panel utility-panel">
+          <div class="utility-head">
+            <h2>More Controls</h2>
+            <button id="resetSelections" class="link-btn" type="button">Reset sandbox</button>
+          </div>
+          <div class="preset-row compact" id="presetButtons">
+            <button type="button" data-preset="default">Starter set</button>
+            <button type="button" data-preset="banks">Banks</button>
+            <button type="button" data-preset="commodities">Commodities</button>
+            <button type="button" data-preset="clear">Clear all</button>
+          </div>
+
+          <details class="advanced-range utility-dates">
+            <summary>Custom month range</summary>
+            <div class="range-grid">
+              <div>
+                <label for="startDate">Start</label>
+                <select id="startDate"></select>
+              </div>
+              <div>
+                <label for="endDate">End</label>
+                <select id="endDate"></select>
+              </div>
             </div>
-            <div id="legend" class="legend"></div>
-          </div>
-          <div class="chart-stage" id="chartStage">
-            <svg id="chart" viewBox="0 0 1100 520" preserveAspectRatio="none" aria-label="Line chart"></svg>
-            <div id="chartTooltip" class="chart-tooltip" aria-hidden="true"></div>
-            <div id="chartEmptyState" class="chart-empty hidden"></div>
-          </div>
-          <p id="chartFootnote" class="chart-footnote muted">All values come from the bundled monthly files. Hover or tap inside the chart to inspect a month.</p>
+          </details>
         </section>
 
-        <section class="panel">
-          <div class="section-head">
-            <h2>Quick comparison</h2>
-            <p class="muted">Simple summary for the selected timeframe.</p>
-          </div>
-          <div id="summaryHighlights" class="summary-highlights"></div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Series</th>
-                  <th>Start</th>
-                  <th>End</th>
-                  <th>Change</th>
-                </tr>
-              </thead>
-              <tbody id="summaryBody"></tbody>
-            </table>
-          </div>
+        <section class="panel explorer-panel compact-panel">
+          <details class="section-disclosure">
+            <summary class="section-summary">
+              <div>
+                <p class="kicker">Series explorer</p>
+                <h2>Choose lines</h2>
+              </div>
+            </summary>
+
+            <div class="selection-strip compact">
+              <div>
+                <p class="selection-label">Selected now</p>
+                <div id="selectedChips" class="selected-chips"></div>
+              </div>
+            </div>
+
+            <div class="explorer-tools full-width">
+              <input id="seriesSearch" class="search-input" type="search" placeholder="Search ticker, company, sector, or group" aria-label="Search series" />
+            </div>
+
+            <div id="seriesList" class="series-groups"></div>
+          </details>
+        </section>
+
+        <section class="panel summary-panel compact-panel">
+          <details class="section-disclosure">
+            <summary class="section-summary">
+              <div>
+                <h2>Quick comparison</h2>
+                <p class="muted">Optional scoreboard for this window.</p>
+              </div>
+            </summary>
+
+            <div id="summaryHighlights" class="summary-highlights"></div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Series</th>
+                    <th>Start</th>
+                    <th>End</th>
+                    <th>Change</th>
+                  </tr>
+                </thead>
+                <tbody id="summaryBody"></tbody>
+              </table>
+            </div>
+          </details>
         </section>
       </section>
     </main>

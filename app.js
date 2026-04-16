@@ -1,7 +1,15 @@
 const COLORS = ["#0f766e", "#f97316", "#2563eb", "#dc2626", "#7c3aed", "#059669", "#d97706", "#0284c7", "#be123c", "#4f46e5"];
-const DEFAULT_SERIES = ["BBCA", "BBRI", "BMRI", "USDIDR"];
-const BENCHMARK_IDS = ["USDIDR", "GOLD", "OIL_WTI"];
+const DEFAULT_SERIES = ["BBCA", "BBRI", "BMRI"];
+const BENCHMARK_IDS = ["IDR", "USDIDR", "GOLD", "OIL_WTI"];
 const CHART_DIMS = { width: 1100, height: 520, pad: { top: 28, right: 28, bottom: 56, left: 78 } };
+const TROY_OUNCE_IN_GRAMS = 31.1034768;
+const BARREL_IN_LITERS = 158.987294928;
+const SERIES_GROUPS = [
+  { key: "stock", title: "Stocks", caption: "Indonesian listed names grouped by sector." },
+  { key: "fx", title: "FX", caption: "Currency reference series." },
+  { key: "commodity", title: "Commodities", caption: "Global benchmark commodities in the bundled data." },
+  { key: "index", title: "Other", caption: "Other series in the dataset." },
+];
 
 const state = {
   rawSeries: [],
@@ -9,13 +17,14 @@ const state = {
   seriesMap: new Map(),
   metadataMap: new Map(),
   selectedSeries: new Set(DEFAULT_SERIES),
-  mode: "growth",
+  mode: "price",
   benchmark: "USDIDR",
   startDate: null,
   endDate: null,
   allDates: [],
   hoverIndex: null,
   seriesSearch: "",
+  openGroups: new Set(),
   lastDisplay: { series: [], dates: [], units: [] },
 };
 
@@ -95,9 +104,11 @@ function buildMaps(seriesRows, metadataRows) {
 function setupControls() {
   renderSeriesList();
   renderBenchmarkOptions();
+  renderStockToggleDropdown();
   populateDateSelects();
   renderSelectedChips();
   setupTooltipButtons();
+  setupModeButtons();
 
   document.getElementById("modeSelect").addEventListener("change", (event) => {
     state.mode = event.target.value;
@@ -114,6 +125,10 @@ function setupControls() {
     renderSeriesList();
   });
 
+  document.getElementById("stockToggleSearch")?.addEventListener("input", () => {
+    renderStockToggleDropdown();
+  });
+
   document.getElementById("startDate").addEventListener("change", (event) => {
     state.startDate = event.target.value;
     clampDateRange();
@@ -128,22 +143,24 @@ function setupControls() {
     render();
   });
 
+  setupDateRangeSlider();
+
   document.getElementById("resetSelections").addEventListener("click", () => {
     state.selectedSeries = new Set(DEFAULT_SERIES.filter((id) => state.metadataMap.has(id)));
-    state.mode = "growth";
+    state.mode = "price";
     state.benchmark = "USDIDR";
     state.startDate = state.allDates[0];
     state.endDate = state.allDates[state.allDates.length - 1];
     state.hoverIndex = null;
     state.seriesSearch = "";
+    state.openGroups = new Set();
     document.getElementById("modeSelect").value = state.mode;
     document.getElementById("benchmarkSelect").value = state.benchmark;
     document.getElementById("seriesSearch").value = "";
     populateDateSelects();
-    syncTimeframeButtons("MAX");
     renderSeriesList();
     renderSelectedChips();
-    render();
+    applyTimeframe("3Y");
   });
 
   document.querySelectorAll("#timeframeButtons button").forEach((button) => {
@@ -152,6 +169,16 @@ function setupControls() {
 
   document.querySelectorAll("#presetButtons button").forEach((button) => {
     button.addEventListener("click", () => applyPreset(button.dataset.preset));
+  });
+}
+
+function setupModeButtons() {
+  document.querySelectorAll("#modeButtons .mode-button").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.mode = button.dataset.mode;
+      document.getElementById("modeSelect").value = state.mode;
+      render();
+    });
   });
 }
 
@@ -169,36 +196,80 @@ function setupTooltipButtons() {
 function renderSeriesList() {
   const host = document.getElementById("seriesList");
   host.innerHTML = "";
-  const rows = [...state.metadata].sort((a, b) => sortMeta(a, b));
+  const rows = [...state.metadata].filter((row) => row.category === "stock").sort((a, b) => sortMeta(a, b));
+  const grouped = new Map(SERIES_GROUPS.map((group) => [group.key, []]));
+
   rows.forEach((row) => {
     const haystack = `${row.series_id} ${row.display_name} ${row.short_name} ${row.category} ${row.sector || ""}`.toLowerCase();
     if (state.seriesSearch && !haystack.includes(state.seriesSearch)) return;
-    const checked = state.selectedSeries.has(row.series_id);
-    const label = document.createElement("label");
-    label.className = `series-item ${checked ? "active" : ""}`;
-    label.innerHTML = `
-      <input type="checkbox" value="${row.series_id}" ${checked ? "checked" : ""} />
-      <span class="series-copy">
-        <span class="series-name">${row.display_name}</span>
-        <span class="series-meta">${row.short_name} · ${row.category}${row.sector ? ` · ${row.sector}` : ""}</span>
-      </span>
+    const groupKey = grouped.has(row.category) ? row.category : "index";
+    grouped.get(groupKey).push(row);
+  });
+
+  SERIES_GROUPS.forEach((group) => {
+    const items = grouped.get(group.key) || [];
+    if (!items.length) return;
+
+    const shouldOpen = state.seriesSearch ? true : state.openGroups.has(group.key);
+
+    const wrapper = document.createElement("section");
+    wrapper.className = `series-group ${shouldOpen ? "open" : ""}`;
+    wrapper.innerHTML = `
+      <button type="button" class="group-toggle" aria-expanded="${shouldOpen}">
+        <span class="group-title">
+          <span class="group-name">${group.title}</span>
+          <span class="group-caption">${group.caption}</span>
+        </span>
+        <span class="group-count">${items.length} series</span>
+      </button>
+      <div class="group-body">
+        <div class="series-grid"></div>
+      </div>
     `;
-    label.querySelector("input").addEventListener("change", (event) => {
-      if (event.target.checked) {
-        state.selectedSeries.add(row.series_id);
+
+    wrapper.querySelector(".group-toggle").addEventListener("click", () => {
+      // Keep the search experience obvious by auto-opening all groups while filtering.
+      if (state.seriesSearch) return;
+      if (state.openGroups.has(group.key)) {
+        state.openGroups.delete(group.key);
       } else {
-        state.selectedSeries.delete(row.series_id);
+        state.openGroups.add(group.key);
       }
-      state.hoverIndex = null;
       renderSeriesList();
-      renderSelectedChips();
-      render();
     });
-    host.appendChild(label);
+
+    const grid = wrapper.querySelector(".series-grid");
+    items.forEach((row) => {
+      const checked = state.selectedSeries.has(row.series_id);
+      const label = document.createElement("label");
+      label.className = `series-item ${checked ? "active" : ""}`;
+      label.innerHTML = `
+        <input type="checkbox" value="${row.series_id}" ${checked ? "checked" : ""} />
+        <span class="series-copy">
+          <span class="series-name">${row.display_name}</span>
+          <span class="series-meta">${row.short_name} · ${row.category}${row.sector ? ` · ${row.sector}` : ""}</span>
+        </span>
+      `;
+      label.querySelector("input").addEventListener("change", (event) => {
+        if (event.target.checked) {
+          state.selectedSeries.add(row.series_id);
+          state.openGroups.add(group.key);
+        } else {
+          state.selectedSeries.delete(row.series_id);
+        }
+        state.hoverIndex = null;
+        renderSeriesList();
+        renderSelectedChips();
+        render();
+      });
+      grid.appendChild(label);
+    });
+
+    host.appendChild(wrapper);
   });
 
   if (!host.children.length) {
-    host.innerHTML = `<div class="selected-empty">No matches. Try a ticker like BBCA, a sector like banks, or clear the search.</div>`;
+    host.innerHTML = `<div class="selected-empty">No stock matches. Try a ticker like BBCA, a sector like banks, or clear the search.</div>`;
   }
 }
 
@@ -210,7 +281,7 @@ function renderSelectedChips() {
     .sort((a, b) => sortMeta(a, b));
 
   if (!selected.length) {
-    host.innerHTML = `<span class="selected-empty">Nothing selected yet.</span>`;
+    host.innerHTML = `<span class="selected-empty">No stocks selected yet. Pick a preset or add stocks from the explorer.</span>`;
     return;
   }
 
@@ -233,11 +304,11 @@ function applyPreset(preset) {
   const presetMap = {
     default: DEFAULT_SERIES,
     banks: ["BBCA", "BBRI", "BMRI"],
-    commodities: ["ADRO", "PTBA", "ANTM", "MDKA", "GOLD", "OIL_WTI"],
-    benchmarks: ["USDIDR", "GOLD", "OIL_WTI"],
+    commodities: ["ADRO", "PTBA", "ANTM", "MDKA"],
     clear: [],
   };
   state.selectedSeries = new Set((presetMap[preset] || []).filter((id) => state.metadataMap.has(id)));
+  state.openGroups = new Set();
   renderSeriesList();
   renderSelectedChips();
   render();
@@ -248,13 +319,122 @@ function sortMeta(a, b) {
   return (order[a.category] ?? 99) - (order[b.category] ?? 99) || a.display_name.localeCompare(b.display_name);
 }
 
+function getBenchmarkLabel(id = state.benchmark) {
+  const labels = {
+    IDR: "Rupiah (IDR)",
+    USDIDR: "US Dollar (USD)",
+    GOLD: "Milligram of Gold",
+    OIL_WTI: "Liters of Oil",
+  };
+  return labels[id] || state.metadataMap.get(id)?.short_name || id;
+}
+
+function getPriceReferenceSeriesIds() {
+  if (state.mode !== "price") return [];
+  if (state.benchmark === "IDR") return [];
+  if (state.benchmark === "USDIDR") return ["USDIDR"];
+  if (state.benchmark === "GOLD") return ["USDIDR", "GOLD"];
+  if (state.benchmark === "OIL_WTI") return ["USDIDR", "OIL_WTI"];
+  return ["USDIDR"];
+}
+
+function getPriceDisplayUnit() {
+  if (state.benchmark === "IDR") return "IDR";
+  if (state.benchmark === "USDIDR") return "USD";
+  if (state.benchmark === "GOLD") return "mg gold";
+  if (state.benchmark === "OIL_WTI") return "liters oil";
+  return "USD";
+}
+
+function convertPriceValue(idrValue, date, referenceMaps) {
+  if (state.benchmark === "IDR") return idrValue;
+
+  const usdIdr = referenceMaps.get("USDIDR")?.get(date);
+  if (!Number.isFinite(usdIdr) || usdIdr <= 0) return NaN;
+  const usdValue = idrValue / usdIdr;
+
+  if (state.benchmark === "USDIDR") return usdValue;
+
+  if (state.benchmark === "GOLD") {
+    const goldUsdPerOunce = referenceMaps.get("GOLD")?.get(date);
+    if (!Number.isFinite(goldUsdPerOunce) || goldUsdPerOunce <= 0) return NaN;
+    const usdPerGram = goldUsdPerOunce / TROY_OUNCE_IN_GRAMS;
+    return (usdValue / usdPerGram) * 1000;
+  }
+
+  if (state.benchmark === "OIL_WTI") {
+    const oilUsdPerBarrel = referenceMaps.get("OIL_WTI")?.get(date);
+    if (!Number.isFinite(oilUsdPerBarrel) || oilUsdPerBarrel <= 0) return NaN;
+    const usdPerLiter = oilUsdPerBarrel / BARREL_IN_LITERS;
+    return usdValue / usdPerLiter;
+  }
+
+  return usdValue;
+}
+
 function renderBenchmarkOptions() {
   const select = document.getElementById("benchmarkSelect");
   select.innerHTML = "";
   BENCHMARK_IDS.forEach((id) => {
-    const meta = state.metadataMap.get(id);
-    if (!meta) return;
-    select.add(new Option(meta.short_name || meta.display_name, id, false, id === state.benchmark));
+    const shouldSkip = id !== "IDR" && !state.metadataMap.get(id);
+    if (shouldSkip) return;
+    const option = new Option(getBenchmarkLabel(id), id, false, id === state.benchmark);
+    select.add(option);
+  });
+}
+
+function renderStockToggleDropdown() {
+  const host = document.getElementById("stockToggleList");
+  const summary = document.getElementById("stockToggleSummary");
+  const searchInput = document.getElementById("stockToggleSearch");
+  if (!host || !summary) return;
+
+  const selectedCount = state.selectedSeries.size;
+  summary.textContent = selectedCount === 1 ? "1 selected" : `${selectedCount} selected`;
+
+  const searchTerm = searchInput?.value?.trim().toLowerCase() || "";
+  const stocks = [...state.metadata]
+    .filter((row) => row.category === "stock")
+    .filter((row) => {
+      if (!searchTerm) return true;
+      const haystack = `${row.series_id} ${row.display_name} ${row.short_name}`.toLowerCase();
+      return haystack.includes(searchTerm);
+    })
+    .sort((a, b) => a.display_name.localeCompare(b.display_name));
+
+  host.innerHTML = "";
+
+  if (!stocks.length) {
+    host.innerHTML = `<div class="selected-empty">No stocks match this search.</div>`;
+    return;
+  }
+
+  stocks.forEach((row) => {
+    const label = document.createElement("label");
+    label.className = "stock-toggle-item";
+    const checked = state.selectedSeries.has(row.series_id);
+    label.innerHTML = `
+      <input type="checkbox" value="${row.series_id}" ${checked ? "checked" : ""} />
+      <span class="stock-toggle-copy">
+        <span class="stock-toggle-name">${row.short_name}</span>
+        <span class="stock-toggle-meta">${row.display_name}</span>
+      </span>
+    `;
+
+    label.querySelector("input").addEventListener("change", (event) => {
+      if (event.target.checked) {
+        state.selectedSeries.add(row.series_id);
+        state.openGroups.add("stock");
+      } else {
+        state.selectedSeries.delete(row.series_id);
+      }
+      state.hoverIndex = null;
+      renderSeriesList();
+      renderSelectedChips();
+      render();
+    });
+
+    host.appendChild(label);
   });
 }
 
@@ -303,6 +483,72 @@ function clampDateRange() {
   }
 }
 
+function setupDateRangeSlider() {
+  const startSlider = document.getElementById("rangeStart");
+  const endSlider = document.getElementById("rangeEnd");
+  if (!startSlider || !endSlider) return;
+
+  startSlider.addEventListener("input", (event) => {
+    const rawStart = Number(event.target.value);
+    const end = state.allDates.indexOf(state.endDate);
+    const start = Math.min(rawStart, end);
+    applyDateRangeByIndex(start, end);
+  });
+
+  endSlider.addEventListener("input", (event) => {
+    const rawEnd = Number(event.target.value);
+    const start = state.allDates.indexOf(state.startDate);
+    const end = Math.max(rawEnd, start);
+    applyDateRangeByIndex(start, end);
+  });
+}
+
+function applyDateRangeByIndex(startIndex, endIndex) {
+  if (!state.allDates.length) return;
+  const max = state.allDates.length - 1;
+  const safeStart = Math.max(0, Math.min(startIndex, max));
+  const safeEnd = Math.max(safeStart, Math.min(endIndex, max));
+  state.startDate = state.allDates[safeStart];
+  state.endDate = state.allDates[safeEnd];
+  populateDateSelects();
+  syncTimeframeButtons(null);
+  render();
+}
+
+function syncDateRangeSlider() {
+  const startSlider = document.getElementById("rangeStart");
+  const endSlider = document.getElementById("rangeEnd");
+  const fill = document.getElementById("dateRangeFill");
+  const startLabel = document.getElementById("rangeStartLabel");
+  const endLabel = document.getElementById("rangeEndLabel");
+  const windowLabel = document.getElementById("rangeWindowLabel");
+
+  if (!startSlider || !endSlider || !fill || !startLabel || !endLabel || !windowLabel || !state.allDates.length) return;
+
+  const max = state.allDates.length - 1;
+  startSlider.min = "0";
+  endSlider.min = "0";
+  startSlider.max = String(max);
+  endSlider.max = String(max);
+
+  const startIndex = Math.max(0, state.allDates.indexOf(state.startDate));
+  const endIndex = Math.max(startIndex, state.allDates.indexOf(state.endDate));
+  startSlider.value = String(startIndex);
+  endSlider.value = String(endIndex);
+
+  const leftPct = max > 0 ? (startIndex / max) * 100 : 0;
+  const rightPct = max > 0 ? (endIndex / max) * 100 : 100;
+  fill.style.left = `${leftPct}%`;
+  fill.style.width = `${Math.max(0, rightPct - leftPct)}%`;
+
+  const startMonth = state.allDates[startIndex];
+  const endMonth = state.allDates[endIndex];
+  const months = endIndex - startIndex + 1;
+  startLabel.textContent = formatMonth(startMonth);
+  endLabel.textContent = formatMonth(endMonth);
+  windowLabel.textContent = `${formatMonth(startMonth)} to ${formatMonth(endMonth)} (${months} mo)`;
+}
+
 function formatMonth(date) {
   const [year, month] = date.split("-");
   const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -325,40 +571,65 @@ function alignSeriesToDates(seriesId, dates) {
   return dates.map((date) => ({ date, ...map.get(date) }));
 }
 
-function transformSeries(alignedRows, benchmarkRows) {
+function transformSeries(alignedRows, benchmarkRows, referenceMaps) {
   if (!alignedRows.length) return [];
   if (state.mode === "price") {
-    return alignedRows.map((row) => ({ date: row.date, value: row.value }));
+    return alignedRows.map((row) => ({ date: row.date, value: convertPriceValue(row.value, row.date, referenceMaps) }));
   }
   if (state.mode === "growth") {
     const first = alignedRows[0].value;
     return alignedRows.map((row) => ({ date: row.date, value: (row.value / first) * 100 }));
   }
   const benchMap = new Map(benchmarkRows.map((row) => [row.date, row.value]));
-  const firstRatio = alignedRows[0].value / benchMap.get(alignedRows[0].date);
-  return alignedRows.map((row) => ({
-    date: row.date,
-    value: ((row.value / benchMap.get(row.date)) / firstRatio) * 100,
-  }));
+  const firstBench = benchMap.get(alignedRows[0].date);
+  if (!Number.isFinite(firstBench) || firstBench === 0) return [];
+  const firstRatio = alignedRows[0].value / firstBench;
+  return alignedRows.map((row) => {
+    const bench = benchMap.get(row.date);
+    if (!Number.isFinite(bench) || bench === 0 || !Number.isFinite(firstRatio) || firstRatio === 0) {
+      return { date: row.date, value: NaN };
+    }
+    return {
+      date: row.date,
+      value: ((row.value / bench) / firstRatio) * 100,
+    };
+  });
 }
 
 function buildDisplaySeries() {
-  const selected = [...state.selectedSeries].filter((id) => state.seriesMap.has(id));
+  const selected = [...state.selectedSeries].filter((id) => {
+    if (!state.seriesMap.has(id)) return false;
+    return state.metadataMap.get(id)?.category === "stock";
+  });
   if (!selected.length) return { series: [], dates: [], reason: "no-selection", units: [] };
 
-  const comparisonIds = state.mode === "relative" ? [...selected, state.benchmark] : selected;
+  const priceReferenceIds = getPriceReferenceSeriesIds();
+  const relativeIds = state.mode === "relative"
+    ? (state.benchmark === "IDR" ? [...selected] : [...selected, state.benchmark])
+    : [];
+  const comparisonIds = state.mode === "relative" ? relativeIds : [...selected, ...priceReferenceIds];
   const commonDates = getCommonDates(comparisonIds);
   if (!commonDates.length) return { series: [], dates: [], reason: "no-common-dates", units: [] };
 
-  const benchmarkRows = state.mode === "relative" ? alignSeriesToDates(state.benchmark, commonDates) : [];
+  const benchmarkRows = state.mode === "relative"
+    ? (state.benchmark === "IDR"
+      ? commonDates.map((date) => ({ date, value: 1 }))
+      : alignSeriesToDates(state.benchmark, commonDates))
+    : [];
+  const referenceMaps = new Map(
+    priceReferenceIds.map((id) => [
+      id,
+      new Map(alignSeriesToDates(id, commonDates).map((row) => [row.date, row.value])),
+    ])
+  );
   const series = selected.map((seriesId) => {
     const aligned = alignSeriesToDates(seriesId, commonDates);
-    const values = transformSeries(aligned, benchmarkRows);
+    const values = transformSeries(aligned, benchmarkRows, referenceMaps);
     const meta = state.metadataMap.get(seriesId);
     return {
       id: seriesId,
       meta,
-      rawUnit: meta?.currency_or_unit || aligned[0]?.unit || "",
+      rawUnit: state.mode === "price" ? getPriceDisplayUnit() : (meta?.currency_or_unit || aligned[0]?.unit || ""),
       values,
     };
   }).filter((entry) => entry.values.length);
@@ -377,13 +648,28 @@ function updateControlVisibility() {
   const benchmarkBlock = document.getElementById("benchmarkBlock");
   const benchmarkSelect = document.getElementById("benchmarkSelect");
   const isRelative = state.mode === "relative";
-  benchmarkBlock.classList.toggle("is-muted", !isRelative);
-  benchmarkSelect.disabled = !isRelative;
+
+  renderBenchmarkOptions();
+
+  if (benchmarkBlock) {
+    benchmarkBlock.classList.toggle("is-muted", !isRelative);
+  }
+  if (benchmarkSelect) {
+    benchmarkSelect.disabled = false;
+    benchmarkSelect.value = state.benchmark;
+  }
+
+  document.querySelectorAll("#modeButtons .mode-button").forEach((button) => {
+    const isActive = button.dataset.mode === state.mode;
+    button.classList.toggle("active", isActive);
+    button.setAttribute("aria-pressed", String(isActive));
+  });
 }
 
 function render() {
   updateCopy();
   updateControlVisibility();
+  renderStockToggleDropdown();
   const display = buildDisplaySeries();
   state.lastDisplay = display;
   const maxIndex = display.dates.length ? display.dates.length - 1 : null;
@@ -395,6 +681,7 @@ function render() {
   renderChart(display);
   renderSummary(display.series);
   updateSnapshot(display);
+  syncDateRangeSlider();
   document.getElementById("coverageText").textContent = `${state.startDate?.slice(0, 7) || "-"} to ${state.endDate?.slice(0, 7) || "-"}`;
 }
 
@@ -402,6 +689,7 @@ function updateCopy() {
   const yAxisLabel = document.getElementById("yAxisLabel");
   const chartTitle = document.getElementById("chartTitle");
   const chartSubtitle = document.getElementById("chartSubtitle");
+  const yAxisExplain = document.getElementById("yAxisExplain");
   const modeHelp = document.getElementById("modeHelp");
   const footnote = document.getElementById("chartFootnote");
 
@@ -409,20 +697,32 @@ function updateCopy() {
     yAxisLabel.textContent = "Index (Start = 100)";
     chartTitle.textContent = "Growth since start";
     chartSubtitle.textContent = "Every selected series starts at 100 on the first visible month, so the slope shows cumulative growth rather than raw price level.";
-    modeHelp.textContent = "Best default for comparing unlike assets because everything is rebased to a common starting point.";
+    yAxisExplain.textContent = "Y-axis = growth index. The first visible month is 100 for every selected stock.";
+    if (modeHelp) modeHelp.textContent = "Best default for comparing unlike assets because everything is rebased to a common starting point.";
     footnote.textContent = "Growth mode rebases each selected monthly series to 100 at the chosen start month.";
   } else if (state.mode === "price") {
-    yAxisLabel.textContent = "Actual value";
+    const benchmarkLabel = getBenchmarkLabel();
+    const displayUnit = getPriceDisplayUnit();
+    yAxisLabel.textContent = `Price (${displayUnit})`;
     chartTitle.textContent = "Price";
-    chartSubtitle.textContent = "Raw monthly values from the local dataset. Useful for inspecting one line closely or comparing similar units.";
-    modeHelp.textContent = "Price mode keeps original units, so lines can be visually misleading when units differ.";
-    footnote.textContent = "Price mode preserves raw monthly values. Mixed units are shown together for exploration only.";
+    if (state.benchmark === "IDR") {
+      chartSubtitle.textContent = "Raw monthly stock prices in Rupiah (IDR).";
+      yAxisExplain.textContent = "Y-axis = stock price in Rupiah (IDR).";
+      if (modeHelp) modeHelp.textContent = "Use the Y-axis reference dropdown to switch from IDR to USD, gold milligrams, or oil liters.";
+      footnote.textContent = "Price mode shows native monthly stock prices in IDR when Rupiah is selected.";
+      return;
+    }
+    chartSubtitle.textContent = `Monthly stock prices converted to ${benchmarkLabel}.`;
+    yAxisExplain.textContent = `Y-axis = stock value in ${benchmarkLabel}.`;
+    if (modeHelp) modeHelp.textContent = "Use the Y-axis reference dropdown to view stock values in different units.";
+    footnote.textContent = `Price mode converts each monthly stock price using the selected reference (${benchmarkLabel}).`;
   } else {
-    const benchmarkName = state.metadataMap.get(state.benchmark)?.short_name || state.benchmark;
+    const benchmarkName = getBenchmarkLabel();
     yAxisLabel.textContent = "Relative performance";
     chartTitle.textContent = `Performance vs ${benchmarkName}`;
     chartSubtitle.textContent = "Lines above 100 outperformed the benchmark from the chosen start month. Lines below 100 lagged it.";
-    modeHelp.textContent = "Each selected series is divided by the chosen benchmark and then rebased to 100.";
+    yAxisExplain.textContent = `Y-axis = performance index versus ${benchmarkName}. The first visible month is rebased to 100.`;
+    if (modeHelp) modeHelp.textContent = "Each selected series is divided by the chosen benchmark and then rebased to 100.";
     footnote.textContent = `Relative mode compares each selected monthly series against ${benchmarkName}.`;
   }
 }
@@ -432,17 +732,17 @@ function updateSnapshot(display) {
   const activeBenchmark = document.getElementById("activeBenchmark");
   const windowMonths = document.getElementById("windowMonths");
   const chartReadingHint = document.getElementById("chartReadingHint");
-  const benchmarkName = state.metadataMap.get(state.benchmark)?.short_name || state.benchmark;
+  const benchmarkName = getBenchmarkLabel();
   const months = display.dates.length;
 
   selectedCount.textContent = `${display.series.length} ${display.series.length === 1 ? "line" : "lines"}`;
-  activeBenchmark.textContent = state.mode === "relative" ? benchmarkName : "Off in this mode";
+  activeBenchmark.textContent = (state.mode === "relative" || state.mode === "price") ? benchmarkName : "Off in this mode";
   windowMonths.textContent = months ? `${months} ${months === 1 ? "month" : "months"}` : "No shared window";
 
   if (!display.series.length) {
     chartReadingHint.textContent = "Adjust the selection or date window";
-  } else if (state.mode === "price" && display.units.length > 1) {
-    chartReadingHint.textContent = "Mixed units on one axis";
+  } else if (state.mode === "price") {
+    chartReadingHint.textContent = `Priced in ${benchmarkName}`;
   } else if (state.mode === "relative") {
     chartReadingHint.textContent = `Relative to ${benchmarkName}`;
   } else {
@@ -668,7 +968,7 @@ function getEmptyReason(reason) {
   if (reason === "no-selection") {
     return {
       title: "No lines selected",
-      body: "Pick at least one stock, FX, or commodity series from the left panel to start the comparison.",
+      body: "Pick at least one stock series from the explorer to start the comparison.",
     };
   }
   if (reason === "no-common-dates") {
@@ -736,10 +1036,9 @@ async function init() {
 
   setupControls();
   populateDateSelects();
-  syncTimeframeButtons("MAX");
   document.getElementById("modeSelect").value = state.mode;
   document.getElementById("benchmarkSelect").value = state.benchmark;
-  render();
+  applyTimeframe("3Y");
 }
 
 init();
