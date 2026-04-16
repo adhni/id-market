@@ -1,5 +1,7 @@
 # Indonesia Market Sandbox — Codex-ready starter repo
 
+Live site: https://adhni.github.io/id-market/
+
 This repo combines the visual MVP structure with the cleaned monthly data pack so you can hand one folder to Codex.
 
 ## Included
