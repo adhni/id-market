@@ -17,7 +17,7 @@ const state = {
   seriesMap: new Map(),
   metadataMap: new Map(),
   selectedSeries: new Set(DEFAULT_SERIES),
-  mode: "price",
+  mode: "growth",
   benchmark: "USDIDR",
   startDate: null,
   endDate: null,
@@ -337,7 +337,7 @@ function isStockBenchmark(id = state.benchmark) {
 }
 
 function getPriceReferenceSeriesIds() {
-  if (state.mode !== "price") return [];
+  if (state.mode !== "price" && state.mode !== "growth") return [];
   if (isStockBenchmark()) return [state.benchmark];
   if (state.benchmark === "IDR") return [];
   if (state.benchmark === "USDIDR") return ["USDIDR"];
@@ -613,8 +613,14 @@ function transformSeries(alignedRows, benchmarkRows, referenceMaps) {
     return alignedRows.map((row) => ({ date: row.date, value: convertPriceValue(row.value, row.date, referenceMaps) }));
   }
   if (state.mode === "growth") {
-    const first = alignedRows[0].value;
-    return alignedRows.map((row) => ({ date: row.date, value: (row.value / first) * 100 }));
+    const converted = alignedRows.map((row) => ({
+      date: row.date,
+      value: convertPriceValue(row.value, row.date, referenceMaps),
+    }));
+    if (converted.some((row) => !Number.isFinite(row.value))) return [];
+    const first = converted[0]?.value;
+    if (!Number.isFinite(first) || first === 0) return [];
+    return converted.map((row) => ({ date: row.date, value: (row.value / first) * 100 }));
   }
   const benchMap = new Map(benchmarkRows.map((row) => [row.date, row.value]));
   const firstBench = benchMap.get(alignedRows[0].date);
@@ -683,16 +689,21 @@ function buildDisplaySeries() {
 function updateControlVisibility() {
   const benchmarkBlock = document.getElementById("benchmarkBlock");
   const benchmarkSelect = document.getElementById("benchmarkSelect");
+  const benchmarkLabel = document.getElementById("benchmarkLabel");
   const isRelative = state.mode === "relative";
 
   renderBenchmarkOptions();
 
   if (benchmarkBlock) {
-    benchmarkBlock.classList.toggle("is-muted", !isRelative);
+    benchmarkBlock.classList.toggle("is-muted", false);
+    benchmarkBlock.style.display = "";
   }
   if (benchmarkSelect) {
     benchmarkSelect.disabled = false;
     benchmarkSelect.value = state.benchmark;
+  }
+  if (benchmarkLabel) {
+    benchmarkLabel.textContent = isRelative ? "Compare against" : "Measure in";
   }
 
   document.querySelectorAll("#modeButtons .mode-button").forEach((button) => {
@@ -730,12 +741,13 @@ function updateCopy() {
   const footnote = document.getElementById("chartFootnote");
 
   if (state.mode === "growth") {
+    const benchmarkLabel = getBenchmarkLabel();
     yAxisLabel.textContent = "Index (Start = 100)";
     chartTitle.textContent = "Growth since start";
-    chartSubtitle.textContent = "Every selected series starts at 100 on the first visible month, so the slope shows cumulative growth rather than raw price level.";
-    yAxisExplain.textContent = "Y-axis = growth index. The first visible month is 100 for every selected stock.";
-    if (modeHelp) modeHelp.textContent = "Best default for comparing unlike assets because everything is rebased to a common starting point.";
-    footnote.textContent = "Growth mode rebases each selected monthly series to 100 at the chosen start month.";
+    chartSubtitle.textContent = `Each selected series is first measured in ${benchmarkLabel}, then rebased to 100 at the first visible month.`;
+    yAxisExplain.textContent = `Y-axis = growth index in ${benchmarkLabel} terms. The first visible month is 100 for every selected stock.`;
+    if (modeHelp) modeHelp.textContent = "Best default for quick comparison. Use Measure in to switch growth basis (IDR, USD, gold, oil, or stock terms).";
+    footnote.textContent = `Growth mode rebases each series to 100 after converting to ${benchmarkLabel}.`;
   } else if (state.mode === "price") {
     const benchmarkLabel = getBenchmarkLabel();
     const displayUnit = getPriceDisplayUnit();
@@ -745,20 +757,20 @@ function updateCopy() {
       const benchmarkShort = state.metadataMap.get(state.benchmark)?.short_name || state.benchmark;
       chartSubtitle.textContent = `Monthly stock prices as a ratio to ${benchmarkShort} stock price.`;
       yAxisExplain.textContent = `Y-axis = how many shares of ${benchmarkShort} each selected stock equals.`;
-      if (modeHelp) modeHelp.textContent = "Use Y-axis Reference to compare in macro units (USD, oil, gold) or as stock-vs-stock ratios.";
+      if (modeHelp) modeHelp.textContent = "Use Measure in to compare in macro units (USD, oil, gold) or as stock-vs-stock ratios.";
       footnote.textContent = `Price mode uses raw ratio: selected stock price divided by ${benchmarkShort} stock price for each month.`;
       return;
     }
     if (state.benchmark === "IDR") {
       chartSubtitle.textContent = "Raw monthly stock prices in Rupiah (IDR).";
       yAxisExplain.textContent = "Y-axis = stock price in Rupiah (IDR).";
-      if (modeHelp) modeHelp.textContent = "Use the Y-axis reference dropdown to switch from IDR to USD, gold milligrams, or oil liters.";
+      if (modeHelp) modeHelp.textContent = "Use Measure in to switch from IDR to USD, gold milligrams, or oil liters.";
       footnote.textContent = "Price mode shows native monthly stock prices in IDR when Rupiah is selected.";
       return;
     }
     chartSubtitle.textContent = `Monthly stock prices converted to ${benchmarkLabel}.`;
     yAxisExplain.textContent = `Y-axis = stock value in ${benchmarkLabel}.`;
-    if (modeHelp) modeHelp.textContent = "Use the Y-axis reference dropdown to view stock values in different units.";
+    if (modeHelp) modeHelp.textContent = "Use Measure in to view stock values in different units.";
     footnote.textContent = `Price mode converts each monthly stock price using the selected reference (${benchmarkLabel}).`;
   } else {
     const benchmarkName = getBenchmarkLabel();
@@ -780,13 +792,15 @@ function updateSnapshot(display) {
   const months = display.dates.length;
 
   selectedCount.textContent = `${display.series.length} ${display.series.length === 1 ? "line" : "lines"}`;
-  activeBenchmark.textContent = (state.mode === "relative" || state.mode === "price") ? benchmarkName : "Off in this mode";
+  activeBenchmark.textContent = (state.mode === "relative" || state.mode === "price" || state.mode === "growth") ? benchmarkName : "Off in this mode";
   windowMonths.textContent = months ? `${months} ${months === 1 ? "month" : "months"}` : "No shared window";
 
   if (!display.series.length) {
     chartReadingHint.textContent = "Adjust the selection or date window";
   } else if (state.mode === "price") {
     chartReadingHint.textContent = `Priced in ${benchmarkName}`;
+  } else if (state.mode === "growth") {
+    chartReadingHint.textContent = `Growth rebased in ${benchmarkName} terms`;
   } else if (state.mode === "relative") {
     chartReadingHint.textContent = `Relative to ${benchmarkName}`;
   } else {

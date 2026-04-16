@@ -14,6 +14,7 @@
           <h1>Indonesia Market Sandbox</h1>
           <div class="pill">2019-07 to 2025-02</div>
         </div>
+        <p class="sub compact">Compare 10 Indonesian stocks against the US dollar, gold, and oil. Growth mode (default) rebases everything to 100, starts in IDR terms, and can be switched via Measure in.</p>
       </div>
     </header>
 
@@ -29,10 +30,10 @@
               <button class="info-dot" type="button" aria-label="About Y-axis modes" data-tooltip="Growth rebases to 100, Price shows raw values, Relative compares performance against the selected benchmark.">?</button>
             </div>
             <div id="modeButtons" class="mode-buttons" role="tablist" aria-label="Y-axis view">
-              <button type="button" class="mode-button" data-mode="growth" aria-pressed="false">
+              <button type="button" class="mode-button active" data-mode="growth" aria-pressed="true">
                 <strong>Growth</strong>
               </button>
-              <button type="button" class="mode-button active" data-mode="price" aria-pressed="true">
+              <button type="button" class="mode-button" data-mode="price" aria-pressed="false">
                 <strong>Price</strong>
               </button>
               <button type="button" class="mode-button" data-mode="relative" aria-pressed="false">
@@ -40,7 +41,7 @@
               </button>
             </div>
             <select id="modeSelect" class="visually-hidden" aria-hidden="true" tabindex="-1">
-              <option value="growth">Growth since start</option>
+              <option value="growth" selected>Growth since start</option>
               <option value="price">Price</option>
               <option value="relative">Performance vs benchmark</option>
             </select>
@@ -87,7 +88,7 @@
             <div class="chart-head-side">
               <div class="chart-controls-row">
                 <div class="chart-benchmark-control" id="benchmarkBlock">
-                  <label for="benchmarkSelect" class="chart-control-label">Y-axis Reference</label>
+                  <label id="benchmarkLabel" for="benchmarkSelect" class="chart-control-label">Measure in</label>
                   <select id="benchmarkSelect" aria-label="Choose comparison reference">
                   </select>
                 </div>
@@ -186,7 +187,7 @@
         </section>
 
         <section class="panel summary-panel compact-panel">
-          <details class="section-disclosure">
+          <details class="section-disclosure" open>
             <summary class="section-summary">
               <div>
                 <h2>Quick comparison</h2>
