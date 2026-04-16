@@ -15,6 +15,7 @@ const state = {
   endDate: null,
   allDates: [],
   hoverIndex: null,
+  seriesSearch: "",
   lastDisplay: { series: [], dates: [], units: [] },
 };
 
@@ -95,6 +96,7 @@ function setupControls() {
   renderSeriesList();
   renderBenchmarkOptions();
   populateDateSelects();
+  renderSelectedChips();
   setupTooltipButtons();
 
   document.getElementById("modeSelect").addEventListener("change", (event) => {
@@ -105,6 +107,11 @@ function setupControls() {
   document.getElementById("benchmarkSelect").addEventListener("change", (event) => {
     state.benchmark = event.target.value;
     render();
+  });
+
+  document.getElementById("seriesSearch").addEventListener("input", (event) => {
+    state.seriesSearch = event.target.value.trim().toLowerCase();
+    renderSeriesList();
   });
 
   document.getElementById("startDate").addEventListener("change", (event) => {
@@ -128,16 +135,23 @@ function setupControls() {
     state.startDate = state.allDates[0];
     state.endDate = state.allDates[state.allDates.length - 1];
     state.hoverIndex = null;
+    state.seriesSearch = "";
     document.getElementById("modeSelect").value = state.mode;
     document.getElementById("benchmarkSelect").value = state.benchmark;
+    document.getElementById("seriesSearch").value = "";
     populateDateSelects();
     syncTimeframeButtons("MAX");
     renderSeriesList();
+    renderSelectedChips();
     render();
   });
 
   document.querySelectorAll("#timeframeButtons button").forEach((button) => {
     button.addEventListener("click", () => applyTimeframe(button.dataset.range));
+  });
+
+  document.querySelectorAll("#presetButtons button").forEach((button) => {
+    button.addEventListener("click", () => applyPreset(button.dataset.preset));
   });
 }
 
@@ -157,6 +171,8 @@ function renderSeriesList() {
   host.innerHTML = "";
   const rows = [...state.metadata].sort((a, b) => sortMeta(a, b));
   rows.forEach((row) => {
+    const haystack = `${row.series_id} ${row.display_name} ${row.short_name} ${row.category} ${row.sector || ""}`.toLowerCase();
+    if (state.seriesSearch && !haystack.includes(state.seriesSearch)) return;
     const checked = state.selectedSeries.has(row.series_id);
     const label = document.createElement("label");
     label.className = `series-item ${checked ? "active" : ""}`;
@@ -175,10 +191,56 @@ function renderSeriesList() {
       }
       state.hoverIndex = null;
       renderSeriesList();
+      renderSelectedChips();
       render();
     });
     host.appendChild(label);
   });
+
+  if (!host.children.length) {
+    host.innerHTML = `<div class="selected-empty">No matches. Try a ticker like BBCA, a sector like banks, or clear the search.</div>`;
+  }
+}
+
+function renderSelectedChips() {
+  const host = document.getElementById("selectedChips");
+  const selected = [...state.selectedSeries]
+    .map((id) => state.metadataMap.get(id))
+    .filter(Boolean)
+    .sort((a, b) => sortMeta(a, b));
+
+  if (!selected.length) {
+    host.innerHTML = `<span class="selected-empty">Nothing selected yet.</span>`;
+    return;
+  }
+
+  host.innerHTML = "";
+  selected.forEach((row) => {
+    const chip = document.createElement("span");
+    chip.className = "selected-chip";
+    chip.innerHTML = `${row.short_name}<button type="button" aria-label="Remove ${row.short_name}">&times;</button>`;
+    chip.querySelector("button").addEventListener("click", () => {
+      state.selectedSeries.delete(row.series_id);
+      renderSeriesList();
+      renderSelectedChips();
+      render();
+    });
+    host.appendChild(chip);
+  });
+}
+
+function applyPreset(preset) {
+  const presetMap = {
+    default: DEFAULT_SERIES,
+    banks: ["BBCA", "BBRI", "BMRI"],
+    commodities: ["ADRO", "PTBA", "ANTM", "MDKA", "GOLD", "OIL_WTI"],
+    benchmarks: ["USDIDR", "GOLD", "OIL_WTI"],
+    clear: [],
+  };
+  state.selectedSeries = new Set((presetMap[preset] || []).filter((id) => state.metadataMap.has(id)));
+  renderSeriesList();
+  renderSelectedChips();
+  render();
 }
 
 function sortMeta(a, b) {
@@ -311,8 +373,17 @@ function buildDisplaySeries() {
   };
 }
 
+function updateControlVisibility() {
+  const benchmarkBlock = document.getElementById("benchmarkBlock");
+  const benchmarkSelect = document.getElementById("benchmarkSelect");
+  const isRelative = state.mode === "relative";
+  benchmarkBlock.classList.toggle("is-muted", !isRelative);
+  benchmarkSelect.disabled = !isRelative;
+}
+
 function render() {
   updateCopy();
+  updateControlVisibility();
   const display = buildDisplaySeries();
   state.lastDisplay = display;
   const maxIndex = display.dates.length ? display.dates.length - 1 : null;
@@ -364,7 +435,7 @@ function updateSnapshot(display) {
   const benchmarkName = state.metadataMap.get(state.benchmark)?.short_name || state.benchmark;
   const months = display.dates.length;
 
-  selectedCount.textContent = `${display.series.length} ${display.series.length === 1 ? "series" : "series"}`;
+  selectedCount.textContent = `${display.series.length} ${display.series.length === 1 ? "line" : "lines"}`;
   activeBenchmark.textContent = state.mode === "relative" ? benchmarkName : "Off in this mode";
   windowMonths.textContent = months ? `${months} ${months === 1 ? "month" : "months"}` : "No shared window";
 

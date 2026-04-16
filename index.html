@@ -52,6 +52,15 @@
             <button id="resetSelections" class="link-btn" type="button">Reset</button>
           </div>
           <p class="helper">Monthly stock, FX, and commodity series from the local data pack only.</p>
+          <input id="seriesSearch" class="search-input" type="search" placeholder="Search ticker, name, or sector" aria-label="Search series" />
+          <div class="preset-row" id="presetButtons">
+            <button type="button" data-preset="default">Starter</button>
+            <button type="button" data-preset="banks">Banks</button>
+            <button type="button" data-preset="commodities">Commodities</button>
+            <button type="button" data-preset="benchmarks">Benchmarks</button>
+            <button type="button" data-preset="clear">Clear</button>
+          </div>
+          <div id="selectedChips" class="selected-chips"></div>
           <div id="seriesList" class="series-list"></div>
         </div>
 
@@ -68,7 +77,7 @@
           <p id="modeHelp" class="helper"></p>
         </div>
 
-        <div class="control-block">
+        <div class="control-block" id="benchmarkBlock">
           <div class="label-row">
             <label for="benchmarkSelect">Benchmark</label>
             <button class="info-dot" type="button" aria-label="About benchmarks" data-tooltip="Benchmarks only affect relative mode. The benchmark itself is not plotted as a separate line in that view.">?</button>
