@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Indonesia Market Sandbox</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="topbar-copy">
+        <p class="eyebrow">Monthly market sandbox</p>
+        <h1>Indonesia Market Sandbox</h1>
+        <p class="sub">Compare a small set of Indonesian stocks against the US dollar, gold, and oil using only the bundled monthly dataset.</p>
+        <div class="header-notes">
+          <span>Static site</span>
+          <span>No live APIs</span>
+          <span>GitHub Pages friendly</span>
+        </div>
+      </div>
+      <div class="pill">2019-07 to 2025-02</div>
+    </header>
+
+    <section class="intro-grid">
+      <article class="panel intro-card">
+        <p class="kicker">How To Read It</p>
+        <h2>Start with growth mode, then switch context.</h2>
+        <p class="muted">Growth mode rebases every selected line to 100 at the chosen start month. Price mode shows raw monthly values. Relative mode shows whether a stock beat or lagged the chosen benchmark over the same window.</p>
+      </article>
+      <article class="panel intro-card">
+        <p class="kicker">What’s In Scope</p>
+        <h2>Playful comparison, not precision trading analysis.</h2>
+        <p class="muted">The app intentionally keeps the dataset small and monthly. Mixed units are allowed in price mode for exploration, but growth and relative mode are the cleanest views for comparison.</p>
+      </article>
+    </section>
+
+    <main class="layout">
+      <aside class="panel controls">
+        <div class="control-block onboarding-block">
+          <p class="kicker">Workflow</p>
+          <ol class="mini-steps">
+            <li>Pick one or more series.</li>
+            <li>Choose a view mode.</li>
+            <li>Adjust the time window or benchmark.</li>
+          </ol>
+        </div>
+
+        <div class="control-block">
+          <div class="label-row">
+            <label>Series</label>
+            <button id="resetSelections" class="link-btn" type="button">Reset</button>
+          </div>
+          <p class="helper">Monthly stock, FX, and commodity series from the local data pack only.</p>
+          <div id="seriesList" class="series-list"></div>
+        </div>
+
+        <div class="control-block">
+          <div class="label-row">
+            <label for="modeSelect">Y-axis view</label>
+            <button class="info-dot" type="button" aria-label="About Y-axis modes" data-tooltip="Growth rebases to 100, Price shows raw values, Relative compares performance against the selected benchmark.">?</button>
+          </div>
+          <select id="modeSelect">
+            <option value="growth">Growth since start</option>
+            <option value="price">Price</option>
+            <option value="relative">Performance vs benchmark</option>
+          </select>
+          <p id="modeHelp" class="helper"></p>
+        </div>
+
+        <div class="control-block">
+          <div class="label-row">
+            <label for="benchmarkSelect">Benchmark</label>
+            <button class="info-dot" type="button" aria-label="About benchmarks" data-tooltip="Benchmarks only affect relative mode. The benchmark itself is not plotted as a separate line in that view.">?</button>
+          </div>
+          <select id="benchmarkSelect"></select>
+          <p class="helper">Used only in Performance vs benchmark mode.</p>
+        </div>
+
+        <div class="control-block">
+          <label>Timeframe</label>
+          <div class="timeframe-buttons" id="timeframeButtons">
+            <button type="button" data-range="1Y">1Y</button>
+            <button type="button" data-range="3Y">3Y</button>
+            <button type="button" data-range="5Y">5Y</button>
+            <button type="button" data-range="MAX" class="active">Max</button>
+          </div>
+        </div>
+
+        <div class="control-block range-grid">
+          <div>
+            <label for="startDate">Start</label>
+            <select id="startDate"></select>
+          </div>
+          <div>
+            <label for="endDate">End</label>
+            <select id="endDate"></select>
+          </div>
+        </div>
+      </aside>
+
+      <section class="main-column">
+        <section class="panel hero-stats">
+          <div>
+            <p class="stat-label">X-axis</p>
+            <p class="stat-value">Month</p>
+          </div>
+          <div>
+            <p class="stat-label">Y-axis</p>
+            <p class="stat-value" id="yAxisLabel">Index (Start = 100)</p>
+          </div>
+          <div>
+            <p class="stat-label">Coverage</p>
+            <p class="stat-value" id="coverageText">2019-07 to 2025-02</p>
+          </div>
+        </section>
+
+        <section class="panel snapshot-bar" id="snapshotBar">
+          <div class="snapshot-item">
+            <p class="stat-label">Selected</p>
+            <p class="snapshot-value" id="selectedCount">4 series</p>
+          </div>
+          <div class="snapshot-item">
+            <p class="stat-label">Benchmark</p>
+            <p class="snapshot-value" id="activeBenchmark">US Dollar</p>
+          </div>
+          <div class="snapshot-item">
+            <p class="stat-label">Window</p>
+            <p class="snapshot-value" id="windowMonths">68 months</p>
+          </div>
+          <div class="snapshot-item">
+            <p class="stat-label">Reading aid</p>
+            <p class="snapshot-value" id="chartReadingHint">Hover the chart for monthly detail</p>
+          </div>
+        </section>
+
+        <section class="panel chart-panel">
+          <div class="chart-head">
+            <div>
+              <h2 id="chartTitle">Growth since start</h2>
+              <p id="chartSubtitle" class="muted">All selected series rebased to 100 at the chosen start date.</p>
+            </div>
+            <div id="legend" class="legend"></div>
+          </div>
+          <div class="chart-stage" id="chartStage">
+            <svg id="chart" viewBox="0 0 1100 520" preserveAspectRatio="none" aria-label="Line chart"></svg>
+            <div id="chartTooltip" class="chart-tooltip" aria-hidden="true"></div>
+            <div id="chartEmptyState" class="chart-empty hidden"></div>
+          </div>
+          <p id="chartFootnote" class="chart-footnote muted">All values come from the bundled monthly files. Hover or tap inside the chart to inspect a month.</p>
+        </section>
+
+        <section class="panel">
+          <div class="section-head">
+            <h2>Quick comparison</h2>
+            <p class="muted">Simple summary for the selected timeframe.</p>
+          </div>
+          <div id="summaryHighlights" class="summary-highlights"></div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Series</th>
+                  <th>Start</th>
+                  <th>End</th>
+                  <th>Change</th>
+                </tr>
+              </thead>
+              <tbody id="summaryBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <script id="embedded-series-csv" type="text/plain">date,series_id,display_name,category,value,unit,frequency
+2019-07-01,ADRO,Adaro Energy Indonesia,stock,1270.0,IDR,monthly
+2019-08-01,ADRO,Adaro Energy Indonesia,stock,1125.0,IDR,monthly
+2019-09-01,ADRO,Adaro Energy Indonesia,stock,1290.0,IDR,monthly
+2019-10-01,ADRO,Adaro Energy Indonesia,stock,1310.0,IDR,monthly
+2019-11-01,ADRO,Adaro Energy Indonesia,stock,1230.0,IDR,monthly
+2019-12-01,ADRO,Adaro Energy Indonesia,stock,1555.0,IDR,monthly
+2020-01-01,ADRO,Adaro Energy Indonesia,stock,1225.0,IDR,monthly
+2020-02-01,ADRO,Adaro Energy Indonesia,stock,1155.0,IDR,monthly
+2020-03-01,ADRO,Adaro Energy Indonesia,stock,990.0,IDR,monthly
+2020-04-01,ADRO,Adaro Energy Indonesia,stock,920.0,IDR,monthly
+2020-05-01,ADRO,Adaro Energy Indonesia,stock,1100.0,IDR,monthly
+2020-06-01,ADRO,Adaro Energy Indonesia,stock,995.0,IDR,monthly
+2020-07-01,ADRO,Adaro Energy Indonesia,stock,1085.0,IDR,monthly
+2020-08-01,ADRO,Adaro Energy Indonesia,stock,1085.0,IDR,monthly
+2020-09-01,ADRO,Adaro Energy Indonesia,stock,1135.0,IDR,monthly
+2020-10-01,ADRO,Adaro Energy Indonesia,stock,1125.0,IDR,monthly
+2020-11-01,ADRO,Adaro Energy Indonesia,stock,1390.0,IDR,monthly
+2020-12-01,ADRO,Adaro Energy Indonesia,stock,1430.0,IDR,monthly
+2021-01-01,ADRO,Adaro Energy Indonesia,stock,1200.0,IDR,monthly
+2021-02-01,ADRO,Adaro Energy Indonesia,stock,1180.0,IDR,monthly
+2021-03-01,ADRO,Adaro Energy Indonesia,stock,1175.0,IDR,monthly
+2021-04-01,ADRO,Adaro Energy Indonesia,stock,1245.0,IDR,monthly
+2021-05-01,ADRO,Adaro Energy Indonesia,stock,1190.0,IDR,monthly
+2021-06-01,ADRO,Adaro Energy Indonesia,stock,1205.0,IDR,monthly
+2021-07-01,ADRO,Adaro Energy Indonesia,stock,1335.0,IDR,monthly
+2021-08-01,ADRO,Adaro Energy Indonesia,stock,1260.0,IDR,monthly
+2021-09-01,ADRO,Adaro Energy Indonesia,stock,1760.0,IDR,monthly
+2021-10-01,ADRO,Adaro Energy Indonesia,stock,1680.0,IDR,monthly
+2021-11-01,ADRO,Adaro Energy Indonesia,stock,1700.0,IDR,monthly
+2021-12-01,ADRO,Adaro Energy Indonesia,stock,2250.0,IDR,monthly
+2022-01-01,ADRO,Adaro Energy Indonesia,stock,2240.0,IDR,monthly
+2022-02-01,ADRO,Adaro Energy Indonesia,stock,2450.0,IDR,monthly
+2022-03-01,ADRO,Adaro Energy Indonesia,stock,2690.0,IDR,monthly
+2022-04-01,ADRO,Adaro Energy Indonesia,stock,3340.0,IDR,monthly
+2022-05-01,ADRO,Adaro Energy Indonesia,stock,3270.0,IDR,monthly
+2022-06-01,ADRO,Adaro Energy Indonesia,stock,2860.0,IDR,monthly
+2022-07-01,ADRO,Adaro Energy Indonesia,stock,3250.0,IDR,monthly
+2022-08-01,ADRO,Adaro Energy Indonesia,stock,3540.0,IDR,monthly
+2022-09-01,ADRO,Adaro Energy Indonesia,stock,3960.0,IDR,monthly
+2022-10-01,ADRO,Adaro Energy Indonesia,stock,3980.0,IDR,monthly
+2022-11-01,ADRO,Adaro Energy Indonesia,stock,3870.0,IDR,monthly
+2022-12-01,ADRO,Adaro Energy Indonesia,stock,3850.0,IDR,monthly
+2023-01-01,ADRO,Adaro Energy Indonesia,stock,2960.0,IDR,monthly
+2023-02-01,ADRO,Adaro Energy Indonesia,stock,2990.0,IDR,monthly
+2023-03-01,ADRO,Adaro Energy Indonesia,stock,2900.0,IDR,monthly
+2023-04-01,ADRO,Adaro Energy Indonesia,stock,3130.0,IDR,monthly
+2023-05-01,ADRO,Adaro Energy Indonesia,stock,2040.0,IDR,monthly
+2023-06-01,ADRO,Adaro Energy Indonesia,stock,2230.0,IDR,monthly
+2023-07-01,ADRO,Adaro Energy Indonesia,stock,2410.0,IDR,monthly
+2023-08-01,ADRO,Adaro Energy Indonesia,stock,2670.0,IDR,monthly
+2023-09-01,ADRO,Adaro Energy Indonesia,stock,2850.0,IDR,monthly
+2023-10-01,ADRO,Adaro Energy Indonesia,stock,2560.0,IDR,monthly
+2023-11-01,ADRO,Adaro Energy Indonesia,stock,2620.0,IDR,monthly
+2023-12-01,ADRO,Adaro Energy Indonesia,stock,2380.0,IDR,monthly
+2024-01-01,ADRO,Adaro Energy Indonesia,stock,2400.0,IDR,monthly
+2024-02-01,ADRO,Adaro Energy Indonesia,stock,2420.0,IDR,monthly
+2024-03-01,ADRO,Adaro Energy Indonesia,stock,2700.0,IDR,monthly
+2024-04-01,ADRO,Adaro Energy Indonesia,stock,2710.0,IDR,monthly
+2024-05-01,ADRO,Adaro Energy Indonesia,stock,2770.0,IDR,monthly
+2024-06-01,ADRO,Adaro Energy Indonesia,stock,2790.0,IDR,monthly
+2024-07-01,ADRO,Adaro Energy Indonesia,stock,3220.0,IDR,monthly
+2024-08-01,ADRO,Adaro Energy Indonesia,stock,3560.0,IDR,monthly
+2024-09-01,ADRO,Adaro Energy Indonesia,stock,3810.0,IDR,monthly
+2024-10-01,ADRO,Adaro Energy Indonesia,stock,3620.0,IDR,monthly
+2024-11-01,ADRO,Adaro Energy Indonesia,stock,2080.0,IDR,monthly
+2024-12-01,ADRO,Adaro Energy Indonesia,stock,2430.0,IDR,monthly
+2025-01-01,ADRO,Adaro Energy Indonesia,stock,2330.0,IDR,monthly
+2025-02-01,ADRO,Adaro Energy Indonesia,stock,2180.0,IDR,monthly
+2019-07-01,ANTM,Aneka Tambang,stock,935.0,IDR,monthly
+2019-08-01,ANTM,Aneka Tambang,stock,1070.0,IDR,monthly
+2019-09-01,ANTM,Aneka Tambang,stock,975.0,IDR,monthly
+2019-10-01,ANTM,Aneka Tambang,stock,890.0,IDR,monthly
+2019-11-01,ANTM,Aneka Tambang,stock,750.0,IDR,monthly
+2019-12-01,ANTM,Aneka Tambang,stock,840.0,IDR,monthly
+2020-01-01,ANTM,Aneka Tambang,stock,720.0,IDR,monthly
+2020-02-01,ANTM,Aneka Tambang,stock,575.0,IDR,monthly
+2020-03-01,ANTM,Aneka Tambang,stock,450.0,IDR,monthly
+2020-04-01,ANTM,Aneka Tambang,stock,510.0,IDR,monthly
+2020-05-01,ANTM,Aneka Tambang,stock,535.0,IDR,monthly
+2020-06-01,ANTM,Aneka Tambang,stock,605.0,IDR,monthly
+2020-07-01,ANTM,Aneka Tambang,stock,730.0,IDR,monthly
+2020-08-01,ANTM,Aneka Tambang,stock,820.0,IDR,monthly
+2020-09-01,ANTM,Aneka Tambang,stock,705.0,IDR,monthly
+2020-10-01,ANTM,Aneka Tambang,stock,1055.0,IDR,monthly
+2020-11-01,ANTM,Aneka Tambang,stock,1145.0,IDR,monthly
+2020-12-01,ANTM,Aneka Tambang,stock,1935.0,IDR,monthly
+2021-01-01,ANTM,Aneka Tambang,stock,2220.0,IDR,monthly
+2021-02-01,ANTM,Aneka Tambang,stock,2840.0,IDR,monthly
+2021-03-01,ANTM,Aneka Tambang,stock,2250.0,IDR,monthly
+2021-04-01,ANTM,Aneka Tambang,stock,2490.0,IDR,monthly
+2021-05-01,ANTM,Aneka Tambang,stock,2450.0,IDR,monthly
+2021-06-01,ANTM,Aneka Tambang,stock,2300.0,IDR,monthly
+2021-07-01,ANTM,Aneka Tambang,stock,2520.0,IDR,monthly
+2021-08-01,ANTM,Aneka Tambang,stock,2390.0,IDR,monthly
+2021-09-01,ANTM,Aneka Tambang,stock,2290.0,IDR,monthly
+2021-10-01,ANTM,Aneka Tambang,stock,2340.0,IDR,monthly
+2021-11-01,ANTM,Aneka Tambang,stock,2300.0,IDR,monthly
+2021-12-01,ANTM,Aneka Tambang,stock,2250.0,IDR,monthly
+2022-01-01,ANTM,Aneka Tambang,stock,1770.0,IDR,monthly
+2022-02-01,ANTM,Aneka Tambang,stock,2220.0,IDR,monthly
+2022-03-01,ANTM,Aneka Tambang,stock,2440.0,IDR,monthly
+2022-04-01,ANTM,Aneka Tambang,stock,2600.0,IDR,monthly
+2022-05-01,ANTM,Aneka Tambang,stock,2510.0,IDR,monthly
+2022-06-01,ANTM,Aneka Tambang,stock,1800.0,IDR,monthly
+2022-07-01,ANTM,Aneka Tambang,stock,1955.0,IDR,monthly
+2022-08-01,ANTM,Aneka Tambang,stock,1990.0,IDR,monthly
+2022-09-01,ANTM,Aneka Tambang,stock,1940.0,IDR,monthly
+2022-10-01,ANTM,Aneka Tambang,stock,1845.0,IDR,monthly
+2022-11-01,ANTM,Aneka Tambang,stock,1985.0,IDR,monthly
+2022-12-01,ANTM,Aneka Tambang,stock,1985.0,IDR,monthly
+2023-01-01,ANTM,Aneka Tambang,stock,2310.0,IDR,monthly
+2023-02-01,ANTM,Aneka Tambang,stock,1990.0,IDR,monthly
+2023-03-01,ANTM,Aneka Tambang,stock,2090.0,IDR,monthly
+2023-04-01,ANTM,Aneka Tambang,stock,2100.0,IDR,monthly
+2023-05-01,ANTM,Aneka Tambang,stock,1895.0,IDR,monthly
+2023-06-01,ANTM,Aneka Tambang,stock,1950.0,IDR,monthly
+2023-07-01,ANTM,Aneka Tambang,stock,1985.0,IDR,monthly
+2023-08-01,ANTM,Aneka Tambang,stock,1990.0,IDR,monthly
+2023-09-01,ANTM,Aneka Tambang,stock,1815.0,IDR,monthly
+2023-10-01,ANTM,Aneka Tambang,stock,1705.0,IDR,monthly
+2023-11-01,ANTM,Aneka Tambang,stock,1740.0,IDR,monthly
+2023-12-01,ANTM,Aneka Tambang,stock,1705.0,IDR,monthly
+2024-01-01,ANTM,Aneka Tambang,stock,1550.0,IDR,monthly
+2024-02-01,ANTM,Aneka Tambang,stock,1460.0,IDR,monthly
+2024-03-01,ANTM,Aneka Tambang,stock,1600.0,IDR,monthly
+2024-04-01,ANTM,Aneka Tambang,stock,1640.0,IDR,monthly
+2024-05-01,ANTM,Aneka Tambang,stock,1465.0,IDR,monthly
+2024-06-01,ANTM,Aneka Tambang,stock,1250.0,IDR,monthly
+2024-07-01,ANTM,Aneka Tambang,stock,1315.0,IDR,monthly
+2024-08-01,ANTM,Aneka Tambang,stock,1390.0,IDR,monthly
+2024-09-01,ANTM,Aneka Tambang,stock,1480.0,IDR,monthly
+2024-10-01,ANTM,Aneka Tambang,stock,1600.0,IDR,monthly
+2024-11-01,ANTM,Aneka Tambang,stock,1430.0,IDR,monthly
+2024-12-01,ANTM,Aneka Tambang,stock,1525.0,IDR,monthly
+2025-01-01,ANTM,Aneka Tambang,stock,1390.0,IDR,monthly
+2025-02-01,ANTM,Aneka Tambang,stock,1620.0,IDR,monthly
+2019-07-01,ASII,Astra International,stock,7000.0,IDR,monthly
+2019-08-01,ASII,Astra International,stock,6675.0,IDR,monthly
+2019-09-01,ASII,Astra International,stock,6600.0,IDR,monthly
+2019-10-01,ASII,Astra International,stock,6950.0,IDR,monthly
+2019-11-01,ASII,Astra International,stock,6500.0,IDR,monthly
+2019-12-01,ASII,Astra International,stock,6925.0,IDR,monthly
+2020-01-01,ASII,Astra International,stock,6350.0,IDR,monthly
+2020-02-01,ASII,Astra International,stock,5525.0,IDR,monthly
+2020-03-01,ASII,Astra International,stock,3900.0,IDR,monthly
+2020-04-01,ASII,Astra International,stock,3850.0,IDR,monthly
+2020-05-01,ASII,Astra International,stock,4770.0,IDR,monthly
+2020-06-01,ASII,Astra International,stock,4800.0,IDR,monthly
+2020-07-01,ASII,Astra International,stock,5150.0,IDR,monthly
+2020-08-01,ASII,Astra International,stock,5100.0,IDR,monthly
+2020-09-01,ASII,Astra International,stock,4460.0,IDR,monthly
+2020-10-01,ASII,Astra International,stock,5425.0,IDR,monthly
+2020-11-01,ASII,Astra International,stock,5300.0,IDR,monthly
+2020-12-01,ASII,Astra International,stock,6025.0,IDR,monthly
+2021-01-01,ASII,Astra International,stock,6100.0,IDR,monthly
+2021-02-01,ASII,Astra International,stock,5400.0,IDR,monthly
+2021-03-01,ASII,Astra International,stock,5275.0,IDR,monthly
+2021-04-01,ASII,Astra International,stock,5500.0,IDR,monthly
+2021-05-01,ASII,Astra International,stock,5250.0,IDR,monthly
+2021-06-01,ASII,Astra International,stock,4940.0,IDR,monthly
+2021-07-01,ASII,Astra International,stock,4720.0,IDR,monthly
+2021-08-01,ASII,Astra International,stock,5225.0,IDR,monthly
+2021-09-01,ASII,Astra International,stock,5500.0,IDR,monthly
+2021-10-01,ASII,Astra International,stock,6025.0,IDR,monthly
+2021-11-01,ASII,Astra International,stock,5775.0,IDR,monthly
+2021-12-01,ASII,Astra International,stock,5700.0,IDR,monthly
+2022-01-01,ASII,Astra International,stock,5475.0,IDR,monthly
+2022-02-01,ASII,Astra International,stock,5800.0,IDR,monthly
+2022-03-01,ASII,Astra International,stock,6575.0,IDR,monthly
+2022-04-01,ASII,Astra International,stock,7575.0,IDR,monthly
+2022-05-01,ASII,Astra International,stock,7350.0,IDR,monthly
+2022-06-01,ASII,Astra International,stock,6625.0,IDR,monthly
+2022-07-01,ASII,Astra International,stock,6325.0,IDR,monthly
+2022-08-01,ASII,Astra International,stock,6975.0,IDR,monthly
+2022-09-01,ASII,Astra International,stock,6625.0,IDR,monthly
+2022-10-01,ASII,Astra International,stock,6650.0,IDR,monthly
+2022-11-01,ASII,Astra International,stock,6050.0,IDR,monthly
+2022-12-01,ASII,Astra International,stock,5700.0,IDR,monthly
+2023-01-01,ASII,Astra International,stock,6000.0,IDR,monthly
+2023-02-01,ASII,Astra International,stock,6100.0,IDR,monthly
+2023-03-01,ASII,Astra International,stock,6000.0,IDR,monthly
+2023-04-01,ASII,Astra International,stock,6750.0,IDR,monthly
+2023-05-01,ASII,Astra International,stock,6450.0,IDR,monthly
+2023-06-01,ASII,Astra International,stock,6775.0,IDR,monthly
+2023-07-01,ASII,Astra International,stock,6850.0,IDR,monthly
+2023-08-01,ASII,Astra International,stock,6450.0,IDR,monthly
+2023-09-01,ASII,Astra International,stock,6225.0,IDR,monthly
+2023-10-01,ASII,Astra International,stock,5775.0,IDR,monthly
+2023-11-01,ASII,Astra International,stock,5400.0,IDR,monthly
+2023-12-01,ASII,Astra International,stock,5650.0,IDR,monthly
+2024-01-01,ASII,Astra International,stock,5125.0,IDR,monthly
+2024-02-01,ASII,Astra International,stock,5225.0,IDR,monthly
+2024-03-01,ASII,Astra International,stock,5150.0,IDR,monthly
+2024-04-01,ASII,Astra International,stock,5150.0,IDR,monthly
+2024-05-01,ASII,Astra International,stock,4290.0,IDR,monthly
+2024-06-01,ASII,Astra International,stock,4460.0,IDR,monthly
+2024-07-01,ASII,Astra International,stock,4720.0,IDR,monthly
+2024-08-01,ASII,Astra International,stock,5100.0,IDR,monthly
+2024-09-01,ASII,Astra International,stock,5050.0,IDR,monthly
+2024-10-01,ASII,Astra International,stock,5100.0,IDR,monthly
+2024-11-01,ASII,Astra International,stock,5100.0,IDR,monthly
+2024-12-01,ASII,Astra International,stock,4900.0,IDR,monthly
+2025-01-01,ASII,Astra International,stock,4800.0,IDR,monthly
+2025-02-01,ASII,Astra International,stock,4750.0,IDR,monthly
+2019-07-01,BBCA,Bank Central Asia,stock,30950.0,IDR,monthly
+2019-08-01,BBCA,Bank Central Asia,stock,30500.0,IDR,monthly
+2019-09-01,BBCA,Bank Central Asia,stock,30350.0,IDR,monthly
+2019-10-01,BBCA,Bank Central Asia,stock,31450.0,IDR,monthly
+2019-11-01,BBCA,Bank Central Asia,stock,31400.0,IDR,monthly
+2019-12-01,BBCA,Bank Central Asia,stock,33425.0,IDR,monthly
+2020-01-01,BBCA,Bank Central Asia,stock,32400.0,IDR,monthly
+2020-02-01,BBCA,Bank Central Asia,stock,31450.0,IDR,monthly
+2020-03-01,BBCA,Bank Central Asia,stock,27625.0,IDR,monthly
+2020-04-01,BBCA,Bank Central Asia,stock,25850.0,IDR,monthly
+2020-05-01,BBCA,Bank Central Asia,stock,25950.0,IDR,monthly
+2020-06-01,BBCA,Bank Central Asia,stock,28475.0,IDR,monthly
+2020-07-01,BBCA,Bank Central Asia,stock,31200.0,IDR,monthly
+2020-08-01,BBCA,Bank Central Asia,stock,31375.0,IDR,monthly
+2020-09-01,BBCA,Bank Central Asia,stock,27100.0,IDR,monthly
+2020-10-01,BBCA,Bank Central Asia,stock,28950.0,IDR,monthly
+2020-11-01,BBCA,Bank Central Asia,stock,31025.0,IDR,monthly
+2020-12-01,BBCA,Bank Central Asia,stock,33850.0,IDR,monthly
+2021-01-01,BBCA,Bank Central Asia,stock,33800.0,IDR,monthly
+2021-02-01,BBCA,Bank Central Asia,stock,33550.0,IDR,monthly
+2021-03-01,BBCA,Bank Central Asia,stock,31075.0,IDR,monthly
+2021-04-01,BBCA,Bank Central Asia,stock,32025.0,IDR,monthly
+2021-05-01,BBCA,Bank Central Asia,stock,31875.0,IDR,monthly
+2021-06-01,BBCA,Bank Central Asia,stock,30125.0,IDR,monthly
+2021-07-01,BBCA,Bank Central Asia,stock,29850.0,IDR,monthly
+2021-08-01,BBCA,Bank Central Asia,stock,32750.0,IDR,monthly
+2021-09-01,BBCA,Bank Central Asia,stock,35000.0,IDR,monthly
+2021-10-01,BBCA,Bank Central Asia,stock,7475.0,IDR,monthly
+2021-11-01,BBCA,Bank Central Asia,stock,7275.0,IDR,monthly
+2021-12-01,BBCA,Bank Central Asia,stock,7300.0,IDR,monthly
+2022-01-01,BBCA,Bank Central Asia,stock,7625.0,IDR,monthly
+2022-02-01,BBCA,Bank Central Asia,stock,8050.0,IDR,monthly
+2022-03-01,BBCA,Bank Central Asia,stock,7975.0,IDR,monthly
+2022-04-01,BBCA,Bank Central Asia,stock,8125.0,IDR,monthly
+2022-05-01,BBCA,Bank Central Asia,stock,7750.0,IDR,monthly
+2022-06-01,BBCA,Bank Central Asia,stock,7250.0,IDR,monthly
+2022-07-01,BBCA,Bank Central Asia,stock,7350.0,IDR,monthly
+2022-08-01,BBCA,Bank Central Asia,stock,8200.0,IDR,monthly
+2022-09-01,BBCA,Bank Central Asia,stock,8550.0,IDR,monthly
+2022-10-01,BBCA,Bank Central Asia,stock,8800.0,IDR,monthly
+2022-11-01,BBCA,Bank Central Asia,stock,9300.0,IDR,monthly
+2022-12-01,BBCA,Bank Central Asia,stock,8550.0,IDR,monthly
+2023-01-01,BBCA,Bank Central Asia,stock,8475.0,IDR,monthly
+2023-02-01,BBCA,Bank Central Asia,stock,8750.0,IDR,monthly
+2023-03-01,BBCA,Bank Central Asia,stock,8750.0,IDR,monthly
+2023-04-01,BBCA,Bank Central Asia,stock,9050.0,IDR,monthly
+2023-05-01,BBCA,Bank Central Asia,stock,9050.0,IDR,monthly
+2023-06-01,BBCA,Bank Central Asia,stock,9150.0,IDR,monthly
+2023-07-01,BBCA,Bank Central Asia,stock,9125.0,IDR,monthly
+2023-08-01,BBCA,Bank Central Asia,stock,9175.0,IDR,monthly
+2023-09-01,BBCA,Bank Central Asia,stock,8825.0,IDR,monthly
+2023-10-01,BBCA,Bank Central Asia,stock,8750.0,IDR,monthly
+2023-11-01,BBCA,Bank Central Asia,stock,8975.0,IDR,monthly
+2023-12-01,BBCA,Bank Central Asia,stock,9400.0,IDR,monthly
+2024-01-01,BBCA,Bank Central Asia,stock,9550.0,IDR,monthly
+2024-02-01,BBCA,Bank Central Asia,stock,9875.0,IDR,monthly
+2024-03-01,BBCA,Bank Central Asia,stock,10075.0,IDR,monthly
+2024-04-01,BBCA,Bank Central Asia,stock,9800.0,IDR,monthly
+2024-05-01,BBCA,Bank Central Asia,stock,9250.0,IDR,monthly
+2024-06-01,BBCA,Bank Central Asia,stock,9925.0,IDR,monthly
+2024-07-01,BBCA,Bank Central Asia,stock,10275.0,IDR,monthly
+2024-08-01,BBCA,Bank Central Asia,stock,10325.0,IDR,monthly
+2024-09-01,BBCA,Bank Central Asia,stock,10325.0,IDR,monthly
+2024-10-01,BBCA,Bank Central Asia,stock,10250.0,IDR,monthly
+2024-11-01,BBCA,Bank Central Asia,stock,10000.0,IDR,monthly
+2024-12-01,BBCA,Bank Central Asia,stock,9675.0,IDR,monthly
+2025-01-01,BBCA,Bank Central Asia,stock,9450.0,IDR,monthly
+2025-02-01,BBCA,Bank Central Asia,stock,9000.0,IDR,monthly
+2019-07-01,BBRI,Bank Rakyat Indonesia,stock,4480.0,IDR,monthly
+2019-08-01,BBRI,Bank Rakyat Indonesia,stock,4270.0,IDR,monthly
+2019-09-01,BBRI,Bank Rakyat Indonesia,stock,4120.0,IDR,monthly
+2019-10-01,BBRI,Bank Rakyat Indonesia,stock,4210.0,IDR,monthly
+2019-11-01,BBRI,Bank Rakyat Indonesia,stock,4090.0,IDR,monthly
+2019-12-01,BBRI,Bank Rakyat Indonesia,stock,4400.0,IDR,monthly
+2020-01-01,BBRI,Bank Rakyat Indonesia,stock,4460.0,IDR,monthly
+2020-02-01,BBRI,Bank Rakyat Indonesia,stock,4190.0,IDR,monthly
+2020-03-01,BBRI,Bank Rakyat Indonesia,stock,3020.0,IDR,monthly
+2020-04-01,BBRI,Bank Rakyat Indonesia,stock,2730.0,IDR,monthly
+2020-05-01,BBRI,Bank Rakyat Indonesia,stock,2950.0,IDR,monthly
+2020-06-01,BBRI,Bank Rakyat Indonesia,stock,3030.0,IDR,monthly
+2020-07-01,BBRI,Bank Rakyat Indonesia,stock,3160.0,IDR,monthly
+2020-08-01,BBRI,Bank Rakyat Indonesia,stock,3510.0,IDR,monthly
+2020-09-01,BBRI,Bank Rakyat Indonesia,stock,3040.0,IDR,monthly
+2020-10-01,BBRI,Bank Rakyat Indonesia,stock,3360.0,IDR,monthly
+2020-11-01,BBRI,Bank Rakyat Indonesia,stock,4090.0,IDR,monthly
+2020-12-01,BBRI,Bank Rakyat Indonesia,stock,4170.0,IDR,monthly
+2021-01-01,BBRI,Bank Rakyat Indonesia,stock,4180.0,IDR,monthly
+2021-02-01,BBRI,Bank Rakyat Indonesia,stock,4710.0,IDR,monthly
+2021-03-01,BBRI,Bank Rakyat Indonesia,stock,4400.0,IDR,monthly
+2021-04-01,BBRI,Bank Rakyat Indonesia,stock,4050.0,IDR,monthly
+2021-05-01,BBRI,Bank Rakyat Indonesia,stock,4260.0,IDR,monthly
+2021-06-01,BBRI,Bank Rakyat Indonesia,stock,3940.0,IDR,monthly
+2021-07-01,BBRI,Bank Rakyat Indonesia,stock,3710.0,IDR,monthly
+2021-08-01,BBRI,Bank Rakyat Indonesia,stock,3930.0,IDR,monthly
+2021-09-01,BBRI,Bank Rakyat Indonesia,stock,3850.0,IDR,monthly
+2021-10-01,BBRI,Bank Rakyat Indonesia,stock,4250.0,IDR,monthly
+2021-11-01,BBRI,Bank Rakyat Indonesia,stock,4090.0,IDR,monthly
+2021-12-01,BBRI,Bank Rakyat Indonesia,stock,4110.0,IDR,monthly
+2022-01-01,BBRI,Bank Rakyat Indonesia,stock,4070.0,IDR,monthly
+2022-02-01,BBRI,Bank Rakyat Indonesia,stock,4550.0,IDR,monthly
+2022-03-01,BBRI,Bank Rakyat Indonesia,stock,4660.0,IDR,monthly
+2022-04-01,BBRI,Bank Rakyat Indonesia,stock,4870.0,IDR,monthly
+2022-05-01,BBRI,Bank Rakyat Indonesia,stock,4630.0,IDR,monthly
+2022-06-01,BBRI,Bank Rakyat Indonesia,stock,4150.0,IDR,monthly
+2022-07-01,BBRI,Bank Rakyat Indonesia,stock,4360.0,IDR,monthly
+2022-08-01,BBRI,Bank Rakyat Indonesia,stock,4340.0,IDR,monthly
+2022-09-01,BBRI,Bank Rakyat Indonesia,stock,4490.0,IDR,monthly
+2022-10-01,BBRI,Bank Rakyat Indonesia,stock,4650.0,IDR,monthly
+2022-11-01,BBRI,Bank Rakyat Indonesia,stock,4980.0,IDR,monthly
+2022-12-01,BBRI,Bank Rakyat Indonesia,stock,4940.0,IDR,monthly
+2023-01-01,BBRI,Bank Rakyat Indonesia,stock,4580.0,IDR,monthly
+2023-02-01,BBRI,Bank Rakyat Indonesia,stock,4670.0,IDR,monthly
+2023-03-01,BBRI,Bank Rakyat Indonesia,stock,4730.0,IDR,monthly
+2023-04-01,BBRI,Bank Rakyat Indonesia,stock,5100.0,IDR,monthly
+2023-05-01,BBRI,Bank Rakyat Indonesia,stock,5575.0,IDR,monthly
+2023-06-01,BBRI,Bank Rakyat Indonesia,stock,5425.0,IDR,monthly
+2023-07-01,BBRI,Bank Rakyat Indonesia,stock,5650.0,IDR,monthly
+2023-08-01,BBRI,Bank Rakyat Indonesia,stock,5550.0,IDR,monthly
+2023-09-01,BBRI,Bank Rakyat Indonesia,stock,5225.0,IDR,monthly
+2023-10-01,BBRI,Bank Rakyat Indonesia,stock,4960.0,IDR,monthly
+2023-11-01,BBRI,Bank Rakyat Indonesia,stock,5275.0,IDR,monthly
+2023-12-01,BBRI,Bank Rakyat Indonesia,stock,5725.0,IDR,monthly
+2024-01-01,BBRI,Bank Rakyat Indonesia,stock,5700.0,IDR,monthly
+2024-02-01,BBRI,Bank Rakyat Indonesia,stock,6125.0,IDR,monthly
+2024-03-01,BBRI,Bank Rakyat Indonesia,stock,6050.0,IDR,monthly
+2024-04-01,BBRI,Bank Rakyat Indonesia,stock,4940.0,IDR,monthly
+2024-05-01,BBRI,Bank Rakyat Indonesia,stock,4340.0,IDR,monthly
+2024-06-01,BBRI,Bank Rakyat Indonesia,stock,4600.0,IDR,monthly
+2024-07-01,BBRI,Bank Rakyat Indonesia,stock,4670.0,IDR,monthly
+2024-08-01,BBRI,Bank Rakyat Indonesia,stock,5150.0,IDR,monthly
+2024-09-01,BBRI,Bank Rakyat Indonesia,stock,4950.0,IDR,monthly
+2024-10-01,BBRI,Bank Rakyat Indonesia,stock,4800.0,IDR,monthly
+2024-11-01,BBRI,Bank Rakyat Indonesia,stock,4250.0,IDR,monthly
+2024-12-01,BBRI,Bank Rakyat Indonesia,stock,4080.0,IDR,monthly
+2025-01-01,BBRI,Bank Rakyat Indonesia,stock,4220.0,IDR,monthly
+2025-02-01,BBRI,Bank Rakyat Indonesia,stock,3890.0,IDR,monthly
+2019-07-01,BMRI,Bank Mandiri,stock,7975.0,IDR,monthly
+2019-08-01,BMRI,Bank Mandiri,stock,7250.0,IDR,monthly
+2019-09-01,BMRI,Bank Mandiri,stock,6975.0,IDR,monthly
+2019-10-01,BMRI,Bank Mandiri,stock,7025.0,IDR,monthly
+2019-11-01,BMRI,Bank Mandiri,stock,6975.0,IDR,monthly
+2019-12-01,BMRI,Bank Mandiri,stock,7675.0,IDR,monthly
+2020-01-01,BMRI,Bank Mandiri,stock,7550.0,IDR,monthly
+2020-02-01,BMRI,Bank Mandiri,stock,7275.0,IDR,monthly
+2020-03-01,BMRI,Bank Mandiri,stock,4680.0,IDR,monthly
+2020-04-01,BMRI,Bank Mandiri,stock,4460.0,IDR,monthly
+2020-05-01,BMRI,Bank Mandiri,stock,4470.0,IDR,monthly
+2020-06-01,BMRI,Bank Mandiri,stock,4950.0,IDR,monthly
+2020-07-01,BMRI,Bank Mandiri,stock,5800.0,IDR,monthly
+2020-08-01,BMRI,Bank Mandiri,stock,5950.0,IDR,monthly
+2020-09-01,BMRI,Bank Mandiri,stock,4960.0,IDR,monthly
+2020-10-01,BMRI,Bank Mandiri,stock,5775.0,IDR,monthly
+2020-11-01,BMRI,Bank Mandiri,stock,6325.0,IDR,monthly
+2020-12-01,BMRI,Bank Mandiri,stock,6325.0,IDR,monthly
+2021-01-01,BMRI,Bank Mandiri,stock,6575.0,IDR,monthly
+2021-02-01,BMRI,Bank Mandiri,stock,6150.0,IDR,monthly
+2021-03-01,BMRI,Bank Mandiri,stock,6150.0,IDR,monthly
+2021-04-01,BMRI,Bank Mandiri,stock,6175.0,IDR,monthly
+2021-05-01,BMRI,Bank Mandiri,stock,6000.0,IDR,monthly
+2021-06-01,BMRI,Bank Mandiri,stock,5900.0,IDR,monthly
+2021-07-01,BMRI,Bank Mandiri,stock,5700.0,IDR,monthly
+2021-08-01,BMRI,Bank Mandiri,stock,6100.0,IDR,monthly
+2021-09-01,BMRI,Bank Mandiri,stock,6150.0,IDR,monthly
+2021-10-01,BMRI,Bank Mandiri,stock,7175.0,IDR,monthly
+2021-11-01,BMRI,Bank Mandiri,stock,7000.0,IDR,monthly
+2021-12-01,BMRI,Bank Mandiri,stock,7025.0,IDR,monthly
+2022-01-01,BMRI,Bank Mandiri,stock,7475.0,IDR,monthly
+2022-02-01,BMRI,Bank Mandiri,stock,7700.0,IDR,monthly
+2022-03-01,BMRI,Bank Mandiri,stock,7900.0,IDR,monthly
+2022-04-01,BMRI,Bank Mandiri,stock,8950.0,IDR,monthly
+2022-05-01,BMRI,Bank Mandiri,stock,8500.0,IDR,monthly
+2022-06-01,BMRI,Bank Mandiri,stock,7925.0,IDR,monthly
+2022-07-01,BMRI,Bank Mandiri,stock,8275.0,IDR,monthly
+2022-08-01,BMRI,Bank Mandiri,stock,8850.0,IDR,monthly
+2022-09-01,BMRI,Bank Mandiri,stock,9425.0,IDR,monthly
+2022-10-01,BMRI,Bank Mandiri,stock,10550.0,IDR,monthly
+2022-11-01,BMRI,Bank Mandiri,stock,10525.0,IDR,monthly
+2022-12-01,BMRI,Bank Mandiri,stock,9925.0,IDR,monthly
+2023-01-01,BMRI,Bank Mandiri,stock,9950.0,IDR,monthly
+2023-02-01,BMRI,Bank Mandiri,stock,10000.0,IDR,monthly
+2023-03-01,BMRI,Bank Mandiri,stock,10325.0,IDR,monthly
+2023-04-01,BMRI,Bank Mandiri,stock,5175.0,IDR,monthly
+2023-05-01,BMRI,Bank Mandiri,stock,5050.0,IDR,monthly
+2023-06-01,BMRI,Bank Mandiri,stock,5200.0,IDR,monthly
+2023-07-01,BMRI,Bank Mandiri,stock,5725.0,IDR,monthly
+2023-08-01,BMRI,Bank Mandiri,stock,6025.0,IDR,monthly
+2023-09-01,BMRI,Bank Mandiri,stock,6025.0,IDR,monthly
+2023-10-01,BMRI,Bank Mandiri,stock,5675.0,IDR,monthly
+2023-11-01,BMRI,Bank Mandiri,stock,5850.0,IDR,monthly
+2023-12-01,BMRI,Bank Mandiri,stock,6050.0,IDR,monthly
+2024-01-01,BMRI,Bank Mandiri,stock,6650.0,IDR,monthly
+2024-02-01,BMRI,Bank Mandiri,stock,7000.0,IDR,monthly
+2024-03-01,BMRI,Bank Mandiri,stock,7250.0,IDR,monthly
+2024-04-01,BMRI,Bank Mandiri,stock,6900.0,IDR,monthly
+2024-05-01,BMRI,Bank Mandiri,stock,5900.0,IDR,monthly
+2024-06-01,BMRI,Bank Mandiri,stock,6150.0,IDR,monthly
+2024-07-01,BMRI,Bank Mandiri,stock,6400.0,IDR,monthly
+2024-08-01,BMRI,Bank Mandiri,stock,7125.0,IDR,monthly
+2024-09-01,BMRI,Bank Mandiri,stock,6925.0,IDR,monthly
+2024-10-01,BMRI,Bank Mandiri,stock,6700.0,IDR,monthly
+2024-11-01,BMRI,Bank Mandiri,stock,6150.0,IDR,monthly
+2024-12-01,BMRI,Bank Mandiri,stock,5700.0,IDR,monthly
+2025-01-01,BMRI,Bank Mandiri,stock,6025.0,IDR,monthly
+2025-02-01,BMRI,Bank Mandiri,stock,5075.0,IDR,monthly
+2019-07-01,GOLD,Gold,commodity,1412.89,USD per troy ounce,monthly
+2019-08-01,GOLD,Gold,commodity,1500.41,USD per troy ounce,monthly
+2019-09-01,GOLD,Gold,commodity,1510.58,USD per troy ounce,monthly
+2019-10-01,GOLD,Gold,commodity,1494.81,USD per troy ounce,monthly
+2019-11-01,GOLD,Gold,commodity,1470.79,USD per troy ounce,monthly
+2019-12-01,GOLD,Gold,commodity,1479.13,USD per troy ounce,monthly
+2020-01-01,GOLD,Gold,commodity,1560.67,USD per troy ounce,monthly
+2020-02-01,GOLD,Gold,commodity,1597.1,USD per troy ounce,monthly
+2020-03-01,GOLD,Gold,commodity,1591.93,USD per troy ounce,monthly
+2020-04-01,GOLD,Gold,commodity,1683.17,USD per troy ounce,monthly
+2020-05-01,GOLD,Gold,commodity,1715.91,USD per troy ounce,monthly
+2020-06-01,GOLD,Gold,commodity,1732.22,USD per troy ounce,monthly
+2020-07-01,GOLD,Gold,commodity,1846.51,USD per troy ounce,monthly
+2020-08-01,GOLD,Gold,commodity,1968.63,USD per troy ounce,monthly
+2020-09-01,GOLD,Gold,commodity,1921.92,USD per troy ounce,monthly
+2020-10-01,GOLD,Gold,commodity,1900.27,USD per troy ounce,monthly
+2020-11-01,GOLD,Gold,commodity,1866.3,USD per troy ounce,monthly
+2020-12-01,GOLD,Gold,commodity,1858.42,USD per troy ounce,monthly
+2021-01-01,GOLD,Gold,commodity,1866.98,USD per troy ounce,monthly
+2021-02-01,GOLD,Gold,commodity,1808.17,USD per troy ounce,monthly
+2021-03-01,GOLD,Gold,commodity,1718.23,USD per troy ounce,monthly
+2021-04-01,GOLD,Gold,commodity,1760.04,USD per troy ounce,monthly
+2021-05-01,GOLD,Gold,commodity,1850.26,USD per troy ounce,monthly
+2021-06-01,GOLD,Gold,commodity,1834.57,USD per troy ounce,monthly
+2021-07-01,GOLD,Gold,commodity,1807.84,USD per troy ounce,monthly
+2021-08-01,GOLD,Gold,commodity,1785.28,USD per troy ounce,monthly
+2021-09-01,GOLD,Gold,commodity,1775.14,USD per troy ounce,monthly
+2021-10-01,GOLD,Gold,commodity,1776.85,USD per troy ounce,monthly
+2021-11-01,GOLD,Gold,commodity,1821.76,USD per troy ounce,monthly
+2021-12-01,GOLD,Gold,commodity,1790.43,USD per troy ounce,monthly
+2022-01-01,GOLD,Gold,commodity,1816.02,USD per troy ounce,monthly
+2022-02-01,GOLD,Gold,commodity,1856.3,USD per troy ounce,monthly
+2022-03-01,GOLD,Gold,commodity,1947.83,USD per troy ounce,monthly
+2022-04-01,GOLD,Gold,commodity,1936.86,USD per troy ounce,monthly
+2022-05-01,GOLD,Gold,commodity,1848.5,USD per troy ounce,monthly
+2022-06-01,GOLD,Gold,commodity,1836.57,USD per troy ounce,monthly
+2022-07-01,GOLD,Gold,commodity,1732.74,USD per troy ounce,monthly
+2022-08-01,GOLD,Gold,commodity,1764.56,USD per troy ounce,monthly
+2022-09-01,GOLD,Gold,commodity,1680.78,USD per troy ounce,monthly
+2022-10-01,GOLD,Gold,commodity,1664.45,USD per troy ounce,monthly
+2022-11-01,GOLD,Gold,commodity,1725.07,USD per troy ounce,monthly
+2022-12-01,GOLD,Gold,commodity,1797.55,USD per troy ounce,monthly
+2023-01-01,GOLD,Gold,commodity,1897.71,USD per troy ounce,monthly
+2023-02-01,GOLD,Gold,commodity,1854.54,USD per troy ounce,monthly
+2023-03-01,GOLD,Gold,commodity,1912.73,USD per troy ounce,monthly
+2023-04-01,GOLD,Gold,commodity,1999.77,USD per troy ounce,monthly
+2023-05-01,GOLD,Gold,commodity,1992.13,USD per troy ounce,monthly
+2023-06-01,GOLD,Gold,commodity,1942.9,USD per troy ounce,monthly
+2023-07-01,GOLD,Gold,commodity,1951.02,USD per troy ounce,monthly
+2023-08-01,GOLD,Gold,commodity,1918.7,USD per troy ounce,monthly
+2023-09-01,GOLD,Gold,commodity,1915.95,USD per troy ounce,monthly
+2023-10-01,GOLD,Gold,commodity,1916.25,USD per troy ounce,monthly
+2023-11-01,GOLD,Gold,commodity,1984.11,USD per troy ounce,monthly
+2023-12-01,GOLD,Gold,commodity,2026.18,USD per troy ounce,monthly
+2024-01-01,GOLD,Gold,commodity,2034.04,USD per troy ounce,monthly
+2024-02-01,GOLD,Gold,commodity,2023.24,USD per troy ounce,monthly
+2024-03-01,GOLD,Gold,commodity,2158.01,USD per troy ounce,monthly
+2024-04-01,GOLD,Gold,commodity,2331.45,USD per troy ounce,monthly
+2024-05-01,GOLD,Gold,commodity,2351.13,USD per troy ounce,monthly
+2024-06-01,GOLD,Gold,commodity,2326.44,USD per troy ounce,monthly
+2024-07-01,GOLD,Gold,commodity,2398.2,USD per troy ounce,monthly
+2024-08-01,GOLD,Gold,commodity,2470.15,USD per troy ounce,monthly
+2024-09-01,GOLD,Gold,commodity,2570.55,USD per troy ounce,monthly
+2024-10-01,GOLD,Gold,commodity,2690.08,USD per troy ounce,monthly
+2024-11-01,GOLD,Gold,commodity,2651.13,USD per troy ounce,monthly
+2024-12-01,GOLD,Gold,commodity,2648.01,USD per troy ounce,monthly
+2025-01-01,GOLD,Gold,commodity,2709.69,USD per troy ounce,monthly
+2025-02-01,GOLD,Gold,commodity,2894.73,USD per troy ounce,monthly
+2019-07-01,ICBP,Indofood CBP,stock,10700.0,IDR,monthly
+2019-08-01,ICBP,Indofood CBP,stock,12050.0,IDR,monthly
+2019-09-01,ICBP,Indofood CBP,stock,12025.0,IDR,monthly
+2019-10-01,ICBP,Indofood CBP,stock,11625.0,IDR,monthly
+2019-11-01,ICBP,Indofood CBP,stock,11325.0,IDR,monthly
+2019-12-01,ICBP,Indofood CBP,stock,11150.0,IDR,monthly
+2020-01-01,ICBP,Indofood CBP,stock,11375.0,IDR,monthly
+2020-02-01,ICBP,Indofood CBP,stock,10275.0,IDR,monthly
+2020-03-01,ICBP,Indofood CBP,stock,10225.0,IDR,monthly
+2020-04-01,ICBP,Indofood CBP,stock,9875.0,IDR,monthly
+2020-05-01,ICBP,Indofood CBP,stock,8150.0,IDR,monthly
+2020-06-01,ICBP,Indofood CBP,stock,9350.0,IDR,monthly
+2020-07-01,ICBP,Indofood CBP,stock,9200.0,IDR,monthly
+2020-08-01,ICBP,Indofood CBP,stock,10225.0,IDR,monthly
+2020-09-01,ICBP,Indofood CBP,stock,10075.0,IDR,monthly
+2020-10-01,ICBP,Indofood CBP,stock,9650.0,IDR,monthly
+2020-11-01,ICBP,Indofood CBP,stock,9900.0,IDR,monthly
+2020-12-01,ICBP,Indofood CBP,stock,9575.0,IDR,monthly
+2021-01-01,ICBP,Indofood CBP,stock,9100.0,IDR,monthly
+2021-02-01,ICBP,Indofood CBP,stock,8575.0,IDR,monthly
+2021-03-01,ICBP,Indofood CBP,stock,9200.0,IDR,monthly
+2021-04-01,ICBP,Indofood CBP,stock,8700.0,IDR,monthly
+2021-05-01,ICBP,Indofood CBP,stock,8200.0,IDR,monthly
+2021-06-01,ICBP,Indofood CBP,stock,8150.0,IDR,monthly
+2021-07-01,ICBP,Indofood CBP,stock,8125.0,IDR,monthly
+2021-08-01,ICBP,Indofood CBP,stock,8425.0,IDR,monthly
+2021-09-01,ICBP,Indofood CBP,stock,8350.0,IDR,monthly
+2021-10-01,ICBP,Indofood CBP,stock,8800.0,IDR,monthly
+2021-11-01,ICBP,Indofood CBP,stock,8450.0,IDR,monthly
+2021-12-01,ICBP,Indofood CBP,stock,8700.0,IDR,monthly
+2022-01-01,ICBP,Indofood CBP,stock,8725.0,IDR,monthly
+2022-02-01,ICBP,Indofood CBP,stock,8500.0,IDR,monthly
+2022-03-01,ICBP,Indofood CBP,stock,7350.0,IDR,monthly
+2022-04-01,ICBP,Indofood CBP,stock,7625.0,IDR,monthly
+2022-05-01,ICBP,Indofood CBP,stock,8575.0,IDR,monthly
+2022-06-01,ICBP,Indofood CBP,stock,9550.0,IDR,monthly
+2022-07-01,ICBP,Indofood CBP,stock,8825.0,IDR,monthly
+2022-08-01,ICBP,Indofood CBP,stock,8300.0,IDR,monthly
+2022-09-01,ICBP,Indofood CBP,stock,8650.0,IDR,monthly
+2022-10-01,ICBP,Indofood CBP,stock,9725.0,IDR,monthly
+2022-11-01,ICBP,Indofood CBP,stock,10100.0,IDR,monthly
+2022-12-01,ICBP,Indofood CBP,stock,10000.0,IDR,monthly
+2023-01-01,ICBP,Indofood CBP,stock,10100.0,IDR,monthly
+2023-02-01,ICBP,Indofood CBP,stock,10125.0,IDR,monthly
+2023-03-01,ICBP,Indofood CBP,stock,9975.0,IDR,monthly
+2023-04-01,ICBP,Indofood CBP,stock,10575.0,IDR,monthly
+2023-05-01,ICBP,Indofood CBP,stock,11700.0,IDR,monthly
+2023-06-01,ICBP,Indofood CBP,stock,11325.0,IDR,monthly
+2023-07-01,ICBP,Indofood CBP,stock,11200.0,IDR,monthly
+2023-08-01,ICBP,Indofood CBP,stock,11200.0,IDR,monthly
+2023-09-01,ICBP,Indofood CBP,stock,11075.0,IDR,monthly
+2023-10-01,ICBP,Indofood CBP,stock,10350.0,IDR,monthly
+2023-11-01,ICBP,Indofood CBP,stock,11550.0,IDR,monthly
+2023-12-01,ICBP,Indofood CBP,stock,10575.0,IDR,monthly
+2024-01-01,ICBP,Indofood CBP,stock,11775.0,IDR,monthly
+2024-02-01,ICBP,Indofood CBP,stock,11550.0,IDR,monthly
+2024-03-01,ICBP,Indofood CBP,stock,11600.0,IDR,monthly
+2024-04-01,ICBP,Indofood CBP,stock,10875.0,IDR,monthly
+2024-05-01,ICBP,Indofood CBP,stock,9750.0,IDR,monthly
+2024-06-01,ICBP,Indofood CBP,stock,10300.0,IDR,monthly
+2024-07-01,ICBP,Indofood CBP,stock,10925.0,IDR,monthly
+2024-08-01,ICBP,Indofood CBP,stock,11475.0,IDR,monthly
+2024-09-01,ICBP,Indofood CBP,stock,12325.0,IDR,monthly
+2024-10-01,ICBP,Indofood CBP,stock,12325.0,IDR,monthly
+2024-11-01,ICBP,Indofood CBP,stock,11900.0,IDR,monthly
+2024-12-01,ICBP,Indofood CBP,stock,11375.0,IDR,monthly
+2025-01-01,ICBP,Indofood CBP,stock,11500.0,IDR,monthly
+2025-02-01,ICBP,Indofood CBP,stock,11500.0,IDR,monthly
+2019-07-01,MDKA,Merdeka Copper Gold,stock,5025.0,IDR,monthly
+2019-08-01,MDKA,Merdeka Copper Gold,stock,6100.0,IDR,monthly
+2019-09-01,MDKA,Merdeka Copper Gold,stock,6225.0,IDR,monthly
+2019-10-01,MDKA,Merdeka Copper Gold,stock,1195.0,IDR,monthly
+2019-11-01,MDKA,Merdeka Copper Gold,stock,1085.0,IDR,monthly
+2019-12-01,MDKA,Merdeka Copper Gold,stock,1070.0,IDR,monthly
+2020-01-01,MDKA,Merdeka Copper Gold,stock,1170.0,IDR,monthly
+2020-02-01,MDKA,Merdeka Copper Gold,stock,1305.0,IDR,monthly
+2020-03-01,MDKA,Merdeka Copper Gold,stock,1015.0,IDR,monthly
+2020-04-01,MDKA,Merdeka Copper Gold,stock,1230.0,IDR,monthly
+2020-05-01,MDKA,Merdeka Copper Gold,stock,1300.0,IDR,monthly
+2020-06-01,MDKA,Merdeka Copper Gold,stock,1365.0,IDR,monthly
+2020-07-01,MDKA,Merdeka Copper Gold,stock,1790.0,IDR,monthly
+2020-08-01,MDKA,Merdeka Copper Gold,stock,1740.0,IDR,monthly
+2020-09-01,MDKA,Merdeka Copper Gold,stock,1615.0,IDR,monthly
+2020-10-01,MDKA,Merdeka Copper Gold,stock,1830.0,IDR,monthly
+2020-11-01,MDKA,Merdeka Copper Gold,stock,1940.0,IDR,monthly
+2020-12-01,MDKA,Merdeka Copper Gold,stock,2430.0,IDR,monthly
+2021-01-01,MDKA,Merdeka Copper Gold,stock,2550.0,IDR,monthly
+2021-02-01,MDKA,Merdeka Copper Gold,stock,2830.0,IDR,monthly
+2021-03-01,MDKA,Merdeka Copper Gold,stock,2150.0,IDR,monthly
+2021-04-01,MDKA,Merdeka Copper Gold,stock,2620.0,IDR,monthly
+2021-05-01,MDKA,Merdeka Copper Gold,stock,2700.0,IDR,monthly
+2021-06-01,MDKA,Merdeka Copper Gold,stock,2940.0,IDR,monthly
+2021-07-01,MDKA,Merdeka Copper Gold,stock,2960.0,IDR,monthly
+2021-08-01,MDKA,Merdeka Copper Gold,stock,2820.0,IDR,monthly
+2021-09-01,MDKA,Merdeka Copper Gold,stock,2520.0,IDR,monthly
+2021-10-01,MDKA,Merdeka Copper Gold,stock,3160.0,IDR,monthly
+2021-11-01,MDKA,Merdeka Copper Gold,stock,3660.0,IDR,monthly
+2021-12-01,MDKA,Merdeka Copper Gold,stock,3890.0,IDR,monthly
+2022-01-01,MDKA,Merdeka Copper Gold,stock,3640.0,IDR,monthly
+2022-02-01,MDKA,Merdeka Copper Gold,stock,3870.0,IDR,monthly
+2022-03-01,MDKA,Merdeka Copper Gold,stock,4530.0,IDR,monthly
+2022-04-01,MDKA,Merdeka Copper Gold,stock,5300.0,IDR,monthly
+2022-05-01,MDKA,Merdeka Copper Gold,stock,5450.0,IDR,monthly
+2022-06-01,MDKA,Merdeka Copper Gold,stock,3990.0,IDR,monthly
+2022-07-01,MDKA,Merdeka Copper Gold,stock,4060.0,IDR,monthly
+2022-08-01,MDKA,Merdeka Copper Gold,stock,4280.0,IDR,monthly
+2022-09-01,MDKA,Merdeka Copper Gold,stock,3940.0,IDR,monthly
+2022-10-01,MDKA,Merdeka Copper Gold,stock,3770.0,IDR,monthly
+2022-11-01,MDKA,Merdeka Copper Gold,stock,4150.0,IDR,monthly
+2022-12-01,MDKA,Merdeka Copper Gold,stock,4120.0,IDR,monthly
+2023-01-01,MDKA,Merdeka Copper Gold,stock,4720.0,IDR,monthly
+2023-02-01,MDKA,Merdeka Copper Gold,stock,4540.0,IDR,monthly
+2023-03-01,MDKA,Merdeka Copper Gold,stock,4190.0,IDR,monthly
+2023-04-01,MDKA,Merdeka Copper Gold,stock,3940.0,IDR,monthly
+2023-05-01,MDKA,Merdeka Copper Gold,stock,3000.0,IDR,monthly
+2023-06-01,MDKA,Merdeka Copper Gold,stock,3060.0,IDR,monthly
+2023-07-01,MDKA,Merdeka Copper Gold,stock,3510.0,IDR,monthly
+2023-08-01,MDKA,Merdeka Copper Gold,stock,3380.0,IDR,monthly
+2023-09-01,MDKA,Merdeka Copper Gold,stock,2880.0,IDR,monthly
+2023-10-01,MDKA,Merdeka Copper Gold,stock,2230.0,IDR,monthly
+2023-11-01,MDKA,Merdeka Copper Gold,stock,2530.0,IDR,monthly
+2023-12-01,MDKA,Merdeka Copper Gold,stock,2700.0,IDR,monthly
+2024-01-01,MDKA,Merdeka Copper Gold,stock,2700.0,IDR,monthly
+2024-02-01,MDKA,Merdeka Copper Gold,stock,2260.0,IDR,monthly
+2024-03-01,MDKA,Merdeka Copper Gold,stock,2280.0,IDR,monthly
+2024-04-01,MDKA,Merdeka Copper Gold,stock,2630.0,IDR,monthly
+2024-05-01,MDKA,Merdeka Copper Gold,stock,2700.0,IDR,monthly
+2024-06-01,MDKA,Merdeka Copper Gold,stock,2380.0,IDR,monthly
+2024-07-01,MDKA,Merdeka Copper Gold,stock,2460.0,IDR,monthly
+2024-08-01,MDKA,Merdeka Copper Gold,stock,2360.0,IDR,monthly
+2024-09-01,MDKA,Merdeka Copper Gold,stock,2720.0,IDR,monthly
+2024-10-01,MDKA,Merdeka Copper Gold,stock,2420.0,IDR,monthly
+2024-11-01,MDKA,Merdeka Copper Gold,stock,1840.0,IDR,monthly
+2024-12-01,MDKA,Merdeka Copper Gold,stock,1615.0,IDR,monthly
+2025-01-01,MDKA,Merdeka Copper Gold,stock,1565.0,IDR,monthly
+2025-02-01,MDKA,Merdeka Copper Gold,stock,1825.0,IDR,monthly
+2019-07-01,OIL_WTI,WTI Crude Oil,commodity,57.35,USD per barrel,monthly
+2019-08-01,OIL_WTI,WTI Crude Oil,commodity,54.81,USD per barrel,monthly
+2019-09-01,OIL_WTI,WTI Crude Oil,commodity,56.95,USD per barrel,monthly
+2019-10-01,OIL_WTI,WTI Crude Oil,commodity,53.96,USD per barrel,monthly
+2019-11-01,OIL_WTI,WTI Crude Oil,commodity,57.03,USD per barrel,monthly
+2019-12-01,OIL_WTI,WTI Crude Oil,commodity,59.88,USD per barrel,monthly
+2020-01-01,OIL_WTI,WTI Crude Oil,commodity,57.52,USD per barrel,monthly
+2020-02-01,OIL_WTI,WTI Crude Oil,commodity,50.54,USD per barrel,monthly
+2020-03-01,OIL_WTI,WTI Crude Oil,commodity,29.21,USD per barrel,monthly
+2020-04-01,OIL_WTI,WTI Crude Oil,commodity,16.55,USD per barrel,monthly
+2020-05-01,OIL_WTI,WTI Crude Oil,commodity,28.56,USD per barrel,monthly
+2020-06-01,OIL_WTI,WTI Crude Oil,commodity,38.31,USD per barrel,monthly
+2020-07-01,OIL_WTI,WTI Crude Oil,commodity,40.71,USD per barrel,monthly
+2020-08-01,OIL_WTI,WTI Crude Oil,commodity,42.34,USD per barrel,monthly
+2020-09-01,OIL_WTI,WTI Crude Oil,commodity,39.63,USD per barrel,monthly
+2020-10-01,OIL_WTI,WTI Crude Oil,commodity,39.4,USD per barrel,monthly
+2020-11-01,OIL_WTI,WTI Crude Oil,commodity,40.94,USD per barrel,monthly
+2020-12-01,OIL_WTI,WTI Crude Oil,commodity,47.02,USD per barrel,monthly
+2021-01-01,OIL_WTI,WTI Crude Oil,commodity,52.0,USD per barrel,monthly
+2021-02-01,OIL_WTI,WTI Crude Oil,commodity,59.04,USD per barrel,monthly
+2021-03-01,OIL_WTI,WTI Crude Oil,commodity,62.33,USD per barrel,monthly
+2021-04-01,OIL_WTI,WTI Crude Oil,commodity,61.72,USD per barrel,monthly
+2021-05-01,OIL_WTI,WTI Crude Oil,commodity,65.17,USD per barrel,monthly
+2021-06-01,OIL_WTI,WTI Crude Oil,commodity,71.38,USD per barrel,monthly
+2021-07-01,OIL_WTI,WTI Crude Oil,commodity,72.49,USD per barrel,monthly
+2021-08-01,OIL_WTI,WTI Crude Oil,commodity,67.73,USD per barrel,monthly
+2021-09-01,OIL_WTI,WTI Crude Oil,commodity,71.65,USD per barrel,monthly
+2021-10-01,OIL_WTI,WTI Crude Oil,commodity,81.48,USD per barrel,monthly
+2021-11-01,OIL_WTI,WTI Crude Oil,commodity,79.15,USD per barrel,monthly
+2021-12-01,OIL_WTI,WTI Crude Oil,commodity,71.71,USD per barrel,monthly
+2022-01-01,OIL_WTI,WTI Crude Oil,commodity,83.22,USD per barrel,monthly
+2022-02-01,OIL_WTI,WTI Crude Oil,commodity,91.64,USD per barrel,monthly
+2022-03-01,OIL_WTI,WTI Crude Oil,commodity,108.5,USD per barrel,monthly
+2022-04-01,OIL_WTI,WTI Crude Oil,commodity,101.78,USD per barrel,monthly
+2022-05-01,OIL_WTI,WTI Crude Oil,commodity,109.55,USD per barrel,monthly
+2022-06-01,OIL_WTI,WTI Crude Oil,commodity,114.84,USD per barrel,monthly
+2022-07-01,OIL_WTI,WTI Crude Oil,commodity,101.62,USD per barrel,monthly
+2022-08-01,OIL_WTI,WTI Crude Oil,commodity,93.67,USD per barrel,monthly
+2022-09-01,OIL_WTI,WTI Crude Oil,commodity,84.26,USD per barrel,monthly
+2022-10-01,OIL_WTI,WTI Crude Oil,commodity,87.55,USD per barrel,monthly
+2022-11-01,OIL_WTI,WTI Crude Oil,commodity,84.37,USD per barrel,monthly
+2022-12-01,OIL_WTI,WTI Crude Oil,commodity,76.44,USD per barrel,monthly
+2023-01-01,OIL_WTI,WTI Crude Oil,commodity,78.12,USD per barrel,monthly
+2023-02-01,OIL_WTI,WTI Crude Oil,commodity,76.83,USD per barrel,monthly
+2023-03-01,OIL_WTI,WTI Crude Oil,commodity,73.28,USD per barrel,monthly
+2023-04-01,OIL_WTI,WTI Crude Oil,commodity,79.45,USD per barrel,monthly
+2023-05-01,OIL_WTI,WTI Crude Oil,commodity,71.58,USD per barrel,monthly
+2023-06-01,OIL_WTI,WTI Crude Oil,commodity,70.25,USD per barrel,monthly
+2023-07-01,OIL_WTI,WTI Crude Oil,commodity,76.07,USD per barrel,monthly
+2023-08-01,OIL_WTI,WTI Crude Oil,commodity,81.39,USD per barrel,monthly
+2023-09-01,OIL_WTI,WTI Crude Oil,commodity,89.43,USD per barrel,monthly
+2023-10-01,OIL_WTI,WTI Crude Oil,commodity,85.64,USD per barrel,monthly
+2023-11-01,OIL_WTI,WTI Crude Oil,commodity,77.69,USD per barrel,monthly
+2023-12-01,OIL_WTI,WTI Crude Oil,commodity,71.9,USD per barrel,monthly
+2024-01-01,OIL_WTI,WTI Crude Oil,commodity,74.15,USD per barrel,monthly
+2024-02-01,OIL_WTI,WTI Crude Oil,commodity,77.25,USD per barrel,monthly
+2024-03-01,OIL_WTI,WTI Crude Oil,commodity,81.28,USD per barrel,monthly
+2024-04-01,OIL_WTI,WTI Crude Oil,commodity,85.35,USD per barrel,monthly
+2024-05-01,OIL_WTI,WTI Crude Oil,commodity,80.02,USD per barrel,monthly
+2024-06-01,OIL_WTI,WTI Crude Oil,commodity,79.77,USD per barrel,monthly
+2024-07-01,OIL_WTI,WTI Crude Oil,commodity,81.8,USD per barrel,monthly
+2024-08-01,OIL_WTI,WTI Crude Oil,commodity,76.68,USD per barrel,monthly
+2024-09-01,OIL_WTI,WTI Crude Oil,commodity,70.24,USD per barrel,monthly
+2024-10-01,OIL_WTI,WTI Crude Oil,commodity,71.99,USD per barrel,monthly
+2024-11-01,OIL_WTI,WTI Crude Oil,commodity,69.95,USD per barrel,monthly
+2024-12-01,OIL_WTI,WTI Crude Oil,commodity,70.12,USD per barrel,monthly
+2025-01-01,OIL_WTI,WTI Crude Oil,commodity,75.74,USD per barrel,monthly
+2025-02-01,OIL_WTI,WTI Crude Oil,commodity,71.53,USD per barrel,monthly
+2019-07-01,PTBA,Bukit Asam,stock,2740.0,IDR,monthly
+2019-08-01,PTBA,Bukit Asam,stock,2470.0,IDR,monthly
+2019-09-01,PTBA,Bukit Asam,stock,2260.0,IDR,monthly
+2019-10-01,PTBA,Bukit Asam,stock,2250.0,IDR,monthly
+2019-11-01,PTBA,Bukit Asam,stock,2420.0,IDR,monthly
+2019-12-01,PTBA,Bukit Asam,stock,2660.0,IDR,monthly
+2020-01-01,PTBA,Bukit Asam,stock,2210.0,IDR,monthly
+2020-02-01,PTBA,Bukit Asam,stock,2240.0,IDR,monthly
+2020-03-01,PTBA,Bukit Asam,stock,2180.0,IDR,monthly
+2020-04-01,PTBA,Bukit Asam,stock,1875.0,IDR,monthly
+2020-05-01,PTBA,Bukit Asam,stock,1945.0,IDR,monthly
+2020-06-01,PTBA,Bukit Asam,stock,2020.0,IDR,monthly
+2020-07-01,PTBA,Bukit Asam,stock,2030.0,IDR,monthly
+2020-08-01,PTBA,Bukit Asam,stock,2040.0,IDR,monthly
+2020-09-01,PTBA,Bukit Asam,stock,1970.0,IDR,monthly
+2020-10-01,PTBA,Bukit Asam,stock,1960.0,IDR,monthly
+2020-11-01,PTBA,Bukit Asam,stock,2360.0,IDR,monthly
+2020-12-01,PTBA,Bukit Asam,stock,2810.0,IDR,monthly
+2021-01-01,PTBA,Bukit Asam,stock,2580.0,IDR,monthly
+2021-02-01,PTBA,Bukit Asam,stock,2710.0,IDR,monthly
+2021-03-01,PTBA,Bukit Asam,stock,2620.0,IDR,monthly
+2021-04-01,PTBA,Bukit Asam,stock,2370.0,IDR,monthly
+2021-05-01,PTBA,Bukit Asam,stock,2210.0,IDR,monthly
+2021-06-01,PTBA,Bukit Asam,stock,2000.0,IDR,monthly
+2021-07-01,PTBA,Bukit Asam,stock,2230.0,IDR,monthly
+2021-08-01,PTBA,Bukit Asam,stock,2110.0,IDR,monthly
+2021-09-01,PTBA,Bukit Asam,stock,2760.0,IDR,monthly
+2021-10-01,PTBA,Bukit Asam,stock,2680.0,IDR,monthly
+2021-11-01,PTBA,Bukit Asam,stock,2600.0,IDR,monthly
+2021-12-01,PTBA,Bukit Asam,stock,2710.0,IDR,monthly
+2022-01-01,PTBA,Bukit Asam,stock,2850.0,IDR,monthly
+2022-02-01,PTBA,Bukit Asam,stock,3140.0,IDR,monthly
+2022-03-01,PTBA,Bukit Asam,stock,3290.0,IDR,monthly
+2022-04-01,PTBA,Bukit Asam,stock,3820.0,IDR,monthly
+2022-05-01,PTBA,Bukit Asam,stock,4530.0,IDR,monthly
+2022-06-01,PTBA,Bukit Asam,stock,3820.0,IDR,monthly
+2022-07-01,PTBA,Bukit Asam,stock,4300.0,IDR,monthly
+2022-08-01,PTBA,Bukit Asam,stock,4250.0,IDR,monthly
+2022-09-01,PTBA,Bukit Asam,stock,4170.0,IDR,monthly
+2022-10-01,PTBA,Bukit Asam,stock,3910.0,IDR,monthly
+2022-11-01,PTBA,Bukit Asam,stock,3800.0,IDR,monthly
+2022-12-01,PTBA,Bukit Asam,stock,3690.0,IDR,monthly
+2023-01-01,PTBA,Bukit Asam,stock,3400.0,IDR,monthly
+2023-02-01,PTBA,Bukit Asam,stock,3860.0,IDR,monthly
+2023-03-01,PTBA,Bukit Asam,stock,3990.0,IDR,monthly
+2023-04-01,PTBA,Bukit Asam,stock,4140.0,IDR,monthly
+2023-05-01,PTBA,Bukit Asam,stock,3060.0,IDR,monthly
+2023-06-01,PTBA,Bukit Asam,stock,2680.0,IDR,monthly
+2023-07-01,PTBA,Bukit Asam,stock,2770.0,IDR,monthly
+2023-08-01,PTBA,Bukit Asam,stock,2860.0,IDR,monthly
+2023-09-01,PTBA,Bukit Asam,stock,2800.0,IDR,monthly
+2023-10-01,PTBA,Bukit Asam,stock,2480.0,IDR,monthly
+2023-11-01,PTBA,Bukit Asam,stock,2420.0,IDR,monthly
+2023-12-01,PTBA,Bukit Asam,stock,2440.0,IDR,monthly
+2024-01-01,PTBA,Bukit Asam,stock,2610.0,IDR,monthly
+2024-02-01,PTBA,Bukit Asam,stock,2560.0,IDR,monthly
+2024-03-01,PTBA,Bukit Asam,stock,2970.0,IDR,monthly
+2024-04-01,PTBA,Bukit Asam,stock,3030.0,IDR,monthly
+2024-05-01,PTBA,Bukit Asam,stock,2490.0,IDR,monthly
+2024-06-01,PTBA,Bukit Asam,stock,2450.0,IDR,monthly
+2024-07-01,PTBA,Bukit Asam,stock,2680.0,IDR,monthly
+2024-08-01,PTBA,Bukit Asam,stock,2730.0,IDR,monthly
+2024-09-01,PTBA,Bukit Asam,stock,3080.0,IDR,monthly
+2024-10-01,PTBA,Bukit Asam,stock,2960.0,IDR,monthly
+2024-11-01,PTBA,Bukit Asam,stock,2700.0,IDR,monthly
+2024-12-01,PTBA,Bukit Asam,stock,2750.0,IDR,monthly
+2025-01-01,PTBA,Bukit Asam,stock,2690.0,IDR,monthly
+2025-02-01,PTBA,Bukit Asam,stock,2660.0,IDR,monthly
+2019-07-01,TLKM,Telkom Indonesia,stock,4300.0,IDR,monthly
+2019-08-01,TLKM,Telkom Indonesia,stock,4450.0,IDR,monthly
+2019-09-01,TLKM,Telkom Indonesia,stock,4310.0,IDR,monthly
+2019-10-01,TLKM,Telkom Indonesia,stock,4110.0,IDR,monthly
+2019-11-01,TLKM,Telkom Indonesia,stock,3930.0,IDR,monthly
+2019-12-01,TLKM,Telkom Indonesia,stock,3970.0,IDR,monthly
+2020-01-01,TLKM,Telkom Indonesia,stock,3800.0,IDR,monthly
+2020-02-01,TLKM,Telkom Indonesia,stock,3490.0,IDR,monthly
+2020-03-01,TLKM,Telkom Indonesia,stock,3160.0,IDR,monthly
+2020-04-01,TLKM,Telkom Indonesia,stock,3500.0,IDR,monthly
+2020-05-01,TLKM,Telkom Indonesia,stock,3150.0,IDR,monthly
+2020-06-01,TLKM,Telkom Indonesia,stock,3050.0,IDR,monthly
+2020-07-01,TLKM,Telkom Indonesia,stock,3050.0,IDR,monthly
+2020-08-01,TLKM,Telkom Indonesia,stock,2860.0,IDR,monthly
+2020-09-01,TLKM,Telkom Indonesia,stock,2560.0,IDR,monthly
+2020-10-01,TLKM,Telkom Indonesia,stock,2620.0,IDR,monthly
+2020-11-01,TLKM,Telkom Indonesia,stock,3230.0,IDR,monthly
+2020-12-01,TLKM,Telkom Indonesia,stock,3310.0,IDR,monthly
+2021-01-01,TLKM,Telkom Indonesia,stock,3110.0,IDR,monthly
+2021-02-01,TLKM,Telkom Indonesia,stock,3490.0,IDR,monthly
+2021-03-01,TLKM,Telkom Indonesia,stock,3420.0,IDR,monthly
+2021-04-01,TLKM,Telkom Indonesia,stock,3200.0,IDR,monthly
+2021-05-01,TLKM,Telkom Indonesia,stock,3440.0,IDR,monthly
+2021-06-01,TLKM,Telkom Indonesia,stock,3150.0,IDR,monthly
+2021-07-01,TLKM,Telkom Indonesia,stock,3240.0,IDR,monthly
+2021-08-01,TLKM,Telkom Indonesia,stock,3400.0,IDR,monthly
+2021-09-01,TLKM,Telkom Indonesia,stock,3690.0,IDR,monthly
+2021-10-01,TLKM,Telkom Indonesia,stock,3800.0,IDR,monthly
+2021-11-01,TLKM,Telkom Indonesia,stock,3990.0,IDR,monthly
+2021-12-01,TLKM,Telkom Indonesia,stock,4040.0,IDR,monthly
+2022-01-01,TLKM,Telkom Indonesia,stock,4190.0,IDR,monthly
+2022-02-01,TLKM,Telkom Indonesia,stock,4340.0,IDR,monthly
+2022-03-01,TLKM,Telkom Indonesia,stock,4580.0,IDR,monthly
+2022-04-01,TLKM,Telkom Indonesia,stock,4620.0,IDR,monthly
+2022-05-01,TLKM,Telkom Indonesia,stock,4310.0,IDR,monthly
+2022-06-01,TLKM,Telkom Indonesia,stock,4000.0,IDR,monthly
+2022-07-01,TLKM,Telkom Indonesia,stock,4230.0,IDR,monthly
+2022-08-01,TLKM,Telkom Indonesia,stock,4560.0,IDR,monthly
+2022-09-01,TLKM,Telkom Indonesia,stock,4460.0,IDR,monthly
+2022-10-01,TLKM,Telkom Indonesia,stock,4390.0,IDR,monthly
+2022-11-01,TLKM,Telkom Indonesia,stock,4040.0,IDR,monthly
+2022-12-01,TLKM,Telkom Indonesia,stock,3750.0,IDR,monthly
+2023-01-01,TLKM,Telkom Indonesia,stock,3850.0,IDR,monthly
+2023-02-01,TLKM,Telkom Indonesia,stock,3880.0,IDR,monthly
+2023-03-01,TLKM,Telkom Indonesia,stock,4060.0,IDR,monthly
+2023-04-01,TLKM,Telkom Indonesia,stock,4250.0,IDR,monthly
+2023-05-01,TLKM,Telkom Indonesia,stock,4040.0,IDR,monthly
+2023-06-01,TLKM,Telkom Indonesia,stock,4000.0,IDR,monthly
+2023-07-01,TLKM,Telkom Indonesia,stock,3720.0,IDR,monthly
+2023-08-01,TLKM,Telkom Indonesia,stock,3730.0,IDR,monthly
+2023-09-01,TLKM,Telkom Indonesia,stock,3750.0,IDR,monthly
+2023-10-01,TLKM,Telkom Indonesia,stock,3490.0,IDR,monthly
+2023-11-01,TLKM,Telkom Indonesia,stock,3760.0,IDR,monthly
+2023-12-01,TLKM,Telkom Indonesia,stock,3950.0,IDR,monthly
+2024-01-01,TLKM,Telkom Indonesia,stock,3960.0,IDR,monthly
+2024-02-01,TLKM,Telkom Indonesia,stock,4000.0,IDR,monthly
+2024-03-01,TLKM,Telkom Indonesia,stock,3470.0,IDR,monthly
+2024-04-01,TLKM,Telkom Indonesia,stock,3170.0,IDR,monthly
+2024-05-01,TLKM,Telkom Indonesia,stock,2900.0,IDR,monthly
+2024-06-01,TLKM,Telkom Indonesia,stock,3130.0,IDR,monthly
+2024-07-01,TLKM,Telkom Indonesia,stock,2880.0,IDR,monthly
+2024-08-01,TLKM,Telkom Indonesia,stock,3060.0,IDR,monthly
+2024-09-01,TLKM,Telkom Indonesia,stock,2990.0,IDR,monthly
+2024-10-01,TLKM,Telkom Indonesia,stock,2820.0,IDR,monthly
+2024-11-01,TLKM,Telkom Indonesia,stock,2710.0,IDR,monthly
+2024-12-01,TLKM,Telkom Indonesia,stock,2710.0,IDR,monthly
+2025-01-01,TLKM,Telkom Indonesia,stock,2660.0,IDR,monthly
+2025-02-01,TLKM,Telkom Indonesia,stock,2650.0,IDR,monthly
+2019-07-01,USDIDR,US Dollar / Indonesian Rupiah,fx,14043.9130434783,IDR per USD,monthly
+2019-08-01,USDIDR,US Dollar / Indonesian Rupiah,fx,14242.0454545455,IDR per USD,monthly
+2019-09-01,USDIDR,US Dollar / Indonesian Rupiah,fx,14111.0952380952,IDR per USD,monthly
+2019-10-01,USDIDR,US Dollar / Indonesian Rupiah,fx,14117.5652173913,IDR per USD,monthly
+2019-11-01,USDIDR,US Dollar / Indonesian Rupiah,fx,14068.7142857143,IDR per USD,monthly
+2019-12-01,USDIDR,US Dollar / Indonesian Rupiah,fx,14013.8636363636,IDR per USD,monthly
+2020-01-01,USDIDR,US Dollar / Indonesian Rupiah,fx,13739.5652173913,IDR per USD,monthly
+2020-02-01,USDIDR,US Dollar / Indonesian Rupiah,fx,13776.15,IDR per USD,monthly
+2020-03-01,USDIDR,US Dollar / Indonesian Rupiah,fx,15253.2727272727,IDR per USD,monthly
+2020-04-01,USDIDR,US Dollar / Indonesian Rupiah,fx,15884.4090909091,IDR per USD,monthly
+2020-05-01,USDIDR,US Dollar / Indonesian Rupiah,fx,14911.3333333333,IDR per USD,monthly
+2020-06-01,USDIDR,US Dollar / Indonesian Rupiah,fx,14220.3636363636,IDR per USD,monthly
+2020-07-01,USDIDR,US Dollar / Indonesian Rupiah,fx,14585.4782608696,IDR per USD,monthly
+2020-08-01,USDIDR,US Dollar / Indonesian Rupiah,fx,14739.5238095238,IDR per USD,monthly
+2020-09-01,USDIDR,US Dollar / Indonesian Rupiah,fx,14847.9545454545,IDR per USD,monthly
+2020-10-01,USDIDR,US Dollar / Indonesian Rupiah,fx,14749.1363636364,IDR per USD,monthly
+2020-11-01,USDIDR,US Dollar / Indonesian Rupiah,fx,14236.8095238095,IDR per USD,monthly
+2020-12-01,USDIDR,US Dollar / Indonesian Rupiah,fx,14173.0869565217,IDR per USD,monthly
+2021-01-01,USDIDR,US Dollar / Indonesian Rupiah,fx,14063.9523809524,IDR per USD,monthly
+2021-02-01,USDIDR,US Dollar / Indonesian Rupiah,fx,14042.1,IDR per USD,monthly
+2021-03-01,USDIDR,US Dollar / Indonesian Rupiah,fx,14417.3913043478,IDR per USD,monthly
+2021-04-01,USDIDR,US Dollar / Indonesian Rupiah,fx,14558.1818181818,IDR per USD,monthly
+2021-05-01,USDIDR,US Dollar / Indonesian Rupiah,fx,14323.1904761905,IDR per USD,monthly
+2021-06-01,USDIDR,US Dollar / Indonesian Rupiah,fx,14338.2272727273,IDR per USD,monthly
+2021-07-01,USDIDR,US Dollar / Indonesian Rupiah,fx,14511.4545454545,IDR per USD,monthly
+2021-08-01,USDIDR,US Dollar / Indonesian Rupiah,fx,14396.3636363636,IDR per USD,monthly
+2021-09-01,USDIDR,US Dollar / Indonesian Rupiah,fx,14256.9545454545,IDR per USD,monthly
+2021-10-01,USDIDR,US Dollar / Indonesian Rupiah,fx,14193.5714285714,IDR per USD,monthly
+2021-11-01,USDIDR,US Dollar / Indonesian Rupiah,fx,14263.5,IDR per USD,monthly
+2021-12-01,USDIDR,US Dollar / Indonesian Rupiah,fx,14328.9130434783,IDR per USD,monthly
+2022-01-01,USDIDR,US Dollar / Indonesian Rupiah,fx,14335.2380952381,IDR per USD,monthly
+2022-02-01,USDIDR,US Dollar / Indonesian Rupiah,fx,14353.55,IDR per USD,monthly
+2022-03-01,USDIDR,US Dollar / Indonesian Rupiah,fx,14348.6956521739,IDR per USD,monthly
+2022-04-01,USDIDR,US Dollar / Indonesian Rupiah,fx,14370.619047619,IDR per USD,monthly
+2022-05-01,USDIDR,US Dollar / Indonesian Rupiah,fx,14565.8181818182,IDR per USD,monthly
+2022-06-01,USDIDR,US Dollar / Indonesian Rupiah,fx,14682.0,IDR per USD,monthly
+2022-07-01,USDIDR,US Dollar / Indonesian Rupiah,fx,14984.380952381,IDR per USD,monthly
+2022-08-01,USDIDR,US Dollar / Indonesian Rupiah,fx,14845.2608695652,IDR per USD,monthly
+2022-09-01,USDIDR,US Dollar / Indonesian Rupiah,fx,14971.7727272727,IDR per USD,monthly
+2022-10-01,USDIDR,US Dollar / Indonesian Rupiah,fx,15417.4761904762,IDR per USD,monthly
+2022-11-01,USDIDR,US Dollar / Indonesian Rupiah,fx,15658.7272727273,IDR per USD,monthly
+2022-12-01,USDIDR,US Dollar / Indonesian Rupiah,fx,15615.0,IDR per USD,monthly
+2023-01-01,USDIDR,US Dollar / Indonesian Rupiah,fx,15286.9545454545,IDR per USD,monthly
+2023-02-01,USDIDR,US Dollar / Indonesian Rupiah,fx,15126.0,IDR per USD,monthly
+2023-03-01,USDIDR,US Dollar / Indonesian Rupiah,fx,15306.9130434783,IDR per USD,monthly
+2023-04-01,USDIDR,US Dollar / Indonesian Rupiah,fx,14846.6,IDR per USD,monthly
+2023-05-01,USDIDR,US Dollar / Indonesian Rupiah,fx,14808.2173913043,IDR per USD,monthly
+2023-06-01,USDIDR,US Dollar / Indonesian Rupiah,fx,14948.1818181818,IDR per USD,monthly
+2023-07-01,USDIDR,US Dollar / Indonesian Rupiah,fx,15038.1904761905,IDR per USD,monthly
+2023-08-01,USDIDR,US Dollar / Indonesian Rupiah,fx,15249.5217391304,IDR per USD,monthly
+2023-09-01,USDIDR,US Dollar / Indonesian Rupiah,fx,15359.4285714286,IDR per USD,monthly
+2023-10-01,USDIDR,US Dollar / Indonesian Rupiah,fx,15741.2272727273,IDR per USD,monthly
+2023-11-01,USDIDR,US Dollar / Indonesian Rupiah,fx,15617.4090909091,IDR per USD,monthly
+2023-12-01,USDIDR,US Dollar / Indonesian Rupiah,fx,15515.2380952381,IDR per USD,monthly
+2024-01-01,USDIDR,US Dollar / Indonesian Rupiah,fx,15602.347826087,IDR per USD,monthly
+2024-02-01,USDIDR,US Dollar / Indonesian Rupiah,fx,15669.3333333333,IDR per USD,monthly
+2024-03-01,USDIDR,US Dollar / Indonesian Rupiah,fx,15705.5238095238,IDR per USD,monthly
+2024-04-01,USDIDR,US Dollar / Indonesian Rupiah,fx,16047.3636363636,IDR per USD,monthly
+2024-05-01,USDIDR,US Dollar / Indonesian Rupiah,fx,16083.3043478261,IDR per USD,monthly
+2024-06-01,USDIDR,US Dollar / Indonesian Rupiah,fx,16325.05,IDR per USD,monthly
+2024-07-01,USDIDR,US Dollar / Indonesian Rupiah,fx,16261.652173913,IDR per USD,monthly
+2024-08-01,USDIDR,US Dollar / Indonesian Rupiah,fx,15793.1818181818,IDR per USD,monthly
+2024-09-01,USDIDR,US Dollar / Indonesian Rupiah,fx,15345.0476190476,IDR per USD,monthly
+2024-10-01,USDIDR,US Dollar / Indonesian Rupiah,fx,15541.347826087,IDR per USD,monthly
+2024-11-01,USDIDR,US Dollar / Indonesian Rupiah,fx,15814.8095238095,IDR per USD,monthly
+2024-12-01,USDIDR,US Dollar / Indonesian Rupiah,fx,16035.8181818182,IDR per USD,monthly
+2025-01-01,USDIDR,US Dollar / Indonesian Rupiah,fx,16259.4782608696,IDR per USD,monthly
+2025-02-01,USDIDR,US Dollar / Indonesian Rupiah,fx,16337.9,IDR per USD,monthly
+</script>
+  <script id="embedded-metadata-csv" type="text/plain">series_id,display_name,short_name,category,sector,currency_or_unit,source,coverage_start,coverage_end,notes
+BBCA,Bank Central Asia,BBCA,stock,Banks,IDR,Dataset-Saham-IDX GitHub raw CSV,2019-07-01,2025-02-01,Monthly series built from last available close in each month.
+BBRI,Bank Rakyat Indonesia,BBRI,stock,Banks,IDR,Dataset-Saham-IDX GitHub raw CSV,2019-07-01,2025-02-01,Monthly series built from last available close in each month.
+BMRI,Bank Mandiri,BMRI,stock,Banks,IDR,Dataset-Saham-IDX GitHub raw CSV,2019-07-01,2025-02-01,Monthly series built from last available close in each month.
+TLKM,Telkom Indonesia,TLKM,stock,Telecom,IDR,Dataset-Saham-IDX GitHub raw CSV,2019-07-01,2025-02-01,Monthly series built from last available close in each month.
+ASII,Astra International,ASII,stock,Conglomerate / Industrials,IDR,Dataset-Saham-IDX GitHub raw CSV,2019-07-01,2025-02-01,Monthly series built from last available close in each month.
+ICBP,Indofood CBP,ICBP,stock,Consumer Staples,IDR,Dataset-Saham-IDX GitHub raw CSV,2019-07-01,2025-02-01,Monthly series built from last available close in each month.
+ANTM,Aneka Tambang,ANTM,stock,Metals & Mining,IDR,Dataset-Saham-IDX GitHub raw CSV,2019-07-01,2025-02-01,Monthly series built from last available close in each month.
+MDKA,Merdeka Copper Gold,MDKA,stock,Metals & Mining,IDR,Dataset-Saham-IDX GitHub raw CSV,2019-07-01,2025-02-01,Monthly series built from last available close in each month.
+ADRO,Adaro Energy Indonesia,ADRO,stock,Energy / Coal,IDR,Dataset-Saham-IDX GitHub raw CSV,2019-07-01,2025-02-01,Monthly series built from last available close in each month.
+PTBA,Bukit Asam,PTBA,stock,Energy / Coal,IDR,Dataset-Saham-IDX GitHub raw CSV,2019-07-01,2025-02-01,Monthly series built from last available close in each month.
+USDIDR,US Dollar / Indonesian Rupiah,US Dollar,fx,FX,IDR per USD,FRED / OECD exchange rate series,2019-07-01,2025-02-01,Monthly value from source series.
+GOLD,Gold,Gold,commodity,Commodity,USD per troy ounce,DataHub Gold Prices monthly CSV,2019-07-01,2025-02-01,Monthly value from source series.
+OIL_WTI,WTI Crude Oil,Oil,commodity,Commodity,USD per barrel,FRED WTI monthly series,2019-07-01,2025-02-01,Monthly value from source series.
+</script>
+  <script src="app.js"></script>
+</body>
+</html>

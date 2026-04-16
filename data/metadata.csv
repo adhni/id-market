@@ -1,0 +1,14 @@
+series_id,display_name,short_name,category,sector,currency_or_unit,source,coverage_start,coverage_end,notes
+BBCA,Bank Central Asia,BBCA,stock,Banks,IDR,Dataset-Saham-IDX GitHub raw CSV,2019-07-01,2025-02-01,Monthly series built from last available close in each month.
+BBRI,Bank Rakyat Indonesia,BBRI,stock,Banks,IDR,Dataset-Saham-IDX GitHub raw CSV,2019-07-01,2025-02-01,Monthly series built from last available close in each month.
+BMRI,Bank Mandiri,BMRI,stock,Banks,IDR,Dataset-Saham-IDX GitHub raw CSV,2019-07-01,2025-02-01,Monthly series built from last available close in each month.
+TLKM,Telkom Indonesia,TLKM,stock,Telecom,IDR,Dataset-Saham-IDX GitHub raw CSV,2019-07-01,2025-02-01,Monthly series built from last available close in each month.
+ASII,Astra International,ASII,stock,Conglomerate / Industrials,IDR,Dataset-Saham-IDX GitHub raw CSV,2019-07-01,2025-02-01,Monthly series built from last available close in each month.
+ICBP,Indofood CBP,ICBP,stock,Consumer Staples,IDR,Dataset-Saham-IDX GitHub raw CSV,2019-07-01,2025-02-01,Monthly series built from last available close in each month.
+ANTM,Aneka Tambang,ANTM,stock,Metals & Mining,IDR,Dataset-Saham-IDX GitHub raw CSV,2019-07-01,2025-02-01,Monthly series built from last available close in each month.
+MDKA,Merdeka Copper Gold,MDKA,stock,Metals & Mining,IDR,Dataset-Saham-IDX GitHub raw CSV,2019-07-01,2025-02-01,Monthly series built from last available close in each month.
+ADRO,Adaro Energy Indonesia,ADRO,stock,Energy / Coal,IDR,Dataset-Saham-IDX GitHub raw CSV,2019-07-01,2025-02-01,Monthly series built from last available close in each month.
+PTBA,Bukit Asam,PTBA,stock,Energy / Coal,IDR,Dataset-Saham-IDX GitHub raw CSV,2019-07-01,2025-02-01,Monthly series built from last available close in each month.
+USDIDR,US Dollar / Indonesian Rupiah,US Dollar,fx,FX,IDR per USD,FRED / OECD exchange rate series,2019-07-01,2025-02-01,Monthly value from source series.
+GOLD,Gold,Gold,commodity,Commodity,USD per troy ounce,DataHub Gold Prices monthly CSV,2019-07-01,2025-02-01,Monthly value from source series.
+OIL_WTI,WTI Crude Oil,Oil,commodity,Commodity,USD per barrel,FRED WTI monthly series,2019-07-01,2025-02-01,Monthly value from source series.

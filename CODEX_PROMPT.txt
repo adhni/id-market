@@ -1,0 +1,20 @@
+Build on top of this existing repo.
+
+Ground rules:
+- Do not fetch live APIs
+- Do not invent data
+- Use only data/series.csv and data/metadata.csv
+- Keep GitHub Pages compatibility
+- Treat this as a playful market sandbox, not a Bloomberg clone
+
+Goals:
+- Improve the UI polish and chart interaction
+- Keep the 3 current Y-axis modes: Growth since start, Price, Performance vs benchmark
+- Keep benchmark options limited to USD/IDR, Gold, and Oil until IHSG is added later
+- Add better onboarding copy and lightweight tooltips
+- Consider adding hover details, nicer empty states, and better mobile behavior
+- Preserve the tidy data-first architecture
+
+Important:
+- Do not break local-file fallback behavior
+- Do not change the input schema unless absolutely necessary
