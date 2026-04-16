@@ -1,6 +1,6 @@
 const COLORS = ["#0f766e", "#f97316", "#2563eb", "#dc2626", "#7c3aed", "#059669", "#d97706", "#0284c7", "#be123c", "#4f46e5"];
 const DEFAULT_SERIES = ["BBCA", "BBRI", "BMRI"];
-const BENCHMARK_IDS = ["IDR", "USDIDR", "GOLD", "OIL_WTI"];
+const MACRO_BENCHMARK_IDS = ["IDR", "USDIDR", "GOLD", "OIL_WTI"];
 const CHART_DIMS = { width: 1100, height: 520, pad: { top: 28, right: 28, bottom: 56, left: 78 } };
 const TROY_OUNCE_IN_GRAMS = 31.1034768;
 const BARREL_IN_LITERS = 158.987294928;
@@ -326,11 +326,19 @@ function getBenchmarkLabel(id = state.benchmark) {
     GOLD: "Milligram of Gold",
     OIL_WTI: "Liters of Oil",
   };
-  return labels[id] || state.metadataMap.get(id)?.short_name || id;
+  if (labels[id]) return labels[id];
+  const stockMeta = state.metadataMap.get(id);
+  if (stockMeta?.category === "stock") return `${stockMeta.short_name} stock`;
+  return stockMeta?.short_name || id;
+}
+
+function isStockBenchmark(id = state.benchmark) {
+  return state.metadataMap.get(id)?.category === "stock";
 }
 
 function getPriceReferenceSeriesIds() {
   if (state.mode !== "price") return [];
+  if (isStockBenchmark()) return [state.benchmark];
   if (state.benchmark === "IDR") return [];
   if (state.benchmark === "USDIDR") return ["USDIDR"];
   if (state.benchmark === "GOLD") return ["USDIDR", "GOLD"];
@@ -339,6 +347,10 @@ function getPriceReferenceSeriesIds() {
 }
 
 function getPriceDisplayUnit() {
+  if (isStockBenchmark()) {
+    const shortName = state.metadataMap.get(state.benchmark)?.short_name || state.benchmark;
+    return `shares ${shortName}`;
+  }
   if (state.benchmark === "IDR") return "IDR";
   if (state.benchmark === "USDIDR") return "USD";
   if (state.benchmark === "GOLD") return "mg gold";
@@ -347,6 +359,12 @@ function getPriceDisplayUnit() {
 }
 
 function convertPriceValue(idrValue, date, referenceMaps) {
+  if (isStockBenchmark()) {
+    const benchmarkIdrValue = referenceMaps.get(state.benchmark)?.get(date);
+    if (!Number.isFinite(benchmarkIdrValue) || benchmarkIdrValue <= 0) return NaN;
+    return idrValue / benchmarkIdrValue;
+  }
+
   if (state.benchmark === "IDR") return idrValue;
 
   const usdIdr = referenceMaps.get("USDIDR")?.get(date);
@@ -375,12 +393,30 @@ function convertPriceValue(idrValue, date, referenceMaps) {
 function renderBenchmarkOptions() {
   const select = document.getElementById("benchmarkSelect");
   select.innerHTML = "";
-  BENCHMARK_IDS.forEach((id) => {
+
+  const macroGroup = document.createElement("optgroup");
+  macroGroup.label = "Macro references";
+  MACRO_BENCHMARK_IDS.forEach((id) => {
     const shouldSkip = id !== "IDR" && !state.metadataMap.get(id);
     if (shouldSkip) return;
-    const option = new Option(getBenchmarkLabel(id), id, false, id === state.benchmark);
-    select.add(option);
+    macroGroup.appendChild(new Option(getBenchmarkLabel(id), id, false, id === state.benchmark));
   });
+  select.appendChild(macroGroup);
+
+  const stockGroup = document.createElement("optgroup");
+  stockGroup.label = "Stocks";
+  const stockRows = [...state.metadata]
+    .filter((row) => row.category === "stock")
+    .sort((a, b) => a.short_name.localeCompare(b.short_name));
+  stockRows.forEach((row) => {
+    const label = `${row.short_name} (${row.series_id})`;
+    stockGroup.appendChild(new Option(label, row.series_id, false, row.series_id === state.benchmark));
+  });
+  select.appendChild(stockGroup);
+
+  if (![...select.options].some((option) => option.value === state.benchmark)) {
+    state.benchmark = "USDIDR";
+  }
 }
 
 function renderStockToggleDropdown() {
@@ -705,6 +741,14 @@ function updateCopy() {
     const displayUnit = getPriceDisplayUnit();
     yAxisLabel.textContent = `Price (${displayUnit})`;
     chartTitle.textContent = "Price";
+    if (isStockBenchmark()) {
+      const benchmarkShort = state.metadataMap.get(state.benchmark)?.short_name || state.benchmark;
+      chartSubtitle.textContent = `Monthly stock prices as a ratio to ${benchmarkShort} stock price.`;
+      yAxisExplain.textContent = `Y-axis = how many shares of ${benchmarkShort} each selected stock equals.`;
+      if (modeHelp) modeHelp.textContent = "Use Y-axis Reference to compare in macro units (USD, oil, gold) or as stock-vs-stock ratios.";
+      footnote.textContent = `Price mode uses raw ratio: selected stock price divided by ${benchmarkShort} stock price for each month.`;
+      return;
+    }
     if (state.benchmark === "IDR") {
       chartSubtitle.textContent = "Raw monthly stock prices in Rupiah (IDR).";
       yAxisExplain.textContent = "Y-axis = stock price in Rupiah (IDR).";
