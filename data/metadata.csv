@@ -1,14 +1,26 @@
 series_id,display_name,short_name,category,sector,currency_or_unit,source,coverage_start,coverage_end,notes
-BBCA,Bank Central Asia,BBCA,stock,Banks,IDR,Dataset-Saham-IDX GitHub raw CSV,2019-07-01,2025-02-01,Monthly series built from last available close in each month.
-BBRI,Bank Rakyat Indonesia,BBRI,stock,Banks,IDR,Dataset-Saham-IDX GitHub raw CSV,2019-07-01,2025-02-01,Monthly series built from last available close in each month.
-BMRI,Bank Mandiri,BMRI,stock,Banks,IDR,Dataset-Saham-IDX GitHub raw CSV,2019-07-01,2025-02-01,Monthly series built from last available close in each month.
-TLKM,Telkom Indonesia,TLKM,stock,Telecom,IDR,Dataset-Saham-IDX GitHub raw CSV,2019-07-01,2025-02-01,Monthly series built from last available close in each month.
-ASII,Astra International,ASII,stock,Conglomerate / Industrials,IDR,Dataset-Saham-IDX GitHub raw CSV,2019-07-01,2025-02-01,Monthly series built from last available close in each month.
-ICBP,Indofood CBP,ICBP,stock,Consumer Staples,IDR,Dataset-Saham-IDX GitHub raw CSV,2019-07-01,2025-02-01,Monthly series built from last available close in each month.
-ANTM,Aneka Tambang,ANTM,stock,Metals & Mining,IDR,Dataset-Saham-IDX GitHub raw CSV,2019-07-01,2025-02-01,Monthly series built from last available close in each month.
-MDKA,Merdeka Copper Gold,MDKA,stock,Metals & Mining,IDR,Dataset-Saham-IDX GitHub raw CSV,2019-07-01,2025-02-01,Monthly series built from last available close in each month.
-ADRO,Adaro Energy Indonesia,ADRO,stock,Energy / Coal,IDR,Dataset-Saham-IDX GitHub raw CSV,2019-07-01,2025-02-01,Monthly series built from last available close in each month.
-PTBA,Bukit Asam,PTBA,stock,Energy / Coal,IDR,Dataset-Saham-IDX GitHub raw CSV,2019-07-01,2025-02-01,Monthly series built from last available close in each month.
-USDIDR,US Dollar / Indonesian Rupiah,US Dollar,fx,FX,IDR per USD,FRED / OECD exchange rate series,2019-07-01,2025-02-01,Monthly value from source series.
 GOLD,Gold,Gold,commodity,Commodity,USD per troy ounce,DataHub Gold Prices monthly CSV,2019-07-01,2025-02-01,Monthly value from source series.
 OIL_WTI,WTI Crude Oil,Oil,commodity,Commodity,USD per barrel,FRED WTI monthly series,2019-07-01,2025-02-01,Monthly value from source series.
+USDIDR,US Dollar / Indonesian Rupiah,US Dollar,fx,FX,IDR per USD,FRED / OECD exchange rate series,2019-07-01,2025-02-01,Monthly value from source series.
+ADRO,Adaro Energy Indonesia,ADRO,stock,Energy / Coal,IDR,Dataset-Saham-IDX GitHub raw CSV,2019-07-01,2025-02-01,Monthly series built from last available close in each month.
+ANTM,Aneka Tambang,ANTM,stock,Metals & Mining,IDR,Dataset-Saham-IDX GitHub raw CSV,2019-07-01,2025-02-01,Monthly series built from last available close in each month.
+ASII,Astra International,ASII,stock,Conglomerate / Industrials,IDR,Dataset-Saham-IDX GitHub raw CSV,2019-07-01,2025-02-01,Monthly series built from last available close in each month.
+BBCA,Bank Central Asia,BBCA,stock,Banks,IDR,Dataset-Saham-IDX GitHub raw CSV,2019-07-01,2025-02-01,Monthly series built from last available close in each month.
+BBNI,Bank Negara Indonesia,BBNI,stock,Banks,IDR,Dataset-Saham-IDX GitHub raw CSV,2019-07-01,2025-02-01,Monthly series built from last available close in each month.
+BBRI,Bank Rakyat Indonesia,BBRI,stock,Banks,IDR,Dataset-Saham-IDX GitHub raw CSV,2019-07-01,2025-02-01,Monthly series built from last available close in each month.
+BMRI,Bank Mandiri,BMRI,stock,Banks,IDR,Dataset-Saham-IDX GitHub raw CSV,2019-07-01,2025-02-01,Monthly series built from last available close in each month.
+GOTO,GoTo Gojek Tokopedia,GOTO,stock,Technology / Internet,IDR,Dataset-Saham-IDX GitHub raw CSV,2022-04-01,2025-02-01,Monthly series built from last available close in each month.
+ICBP,Indofood CBP,ICBP,stock,Consumer Staples,IDR,Dataset-Saham-IDX GitHub raw CSV,2019-07-01,2025-02-01,Monthly series built from last available close in each month.
+INCO,Vale Indonesia,INCO,stock,Metals & Mining,IDR,Dataset-Saham-IDX GitHub raw CSV,2019-07-01,2025-02-01,Monthly series built from last available close in each month.
+ISAT,Indosat Ooredoo Hutchison,ISAT,stock,Telecom,IDR,Dataset-Saham-IDX GitHub raw CSV,2019-07-01,2025-02-01,Monthly series built from last available close in each month.
+ITMG,Indo Tambangraya Megah,ITMG,stock,Energy / Coal,IDR,Dataset-Saham-IDX GitHub raw CSV,2019-07-01,2025-02-01,Monthly series built from last available close in each month.
+MDKA,Merdeka Copper Gold,MDKA,stock,Metals & Mining,IDR,Dataset-Saham-IDX GitHub raw CSV,2019-07-01,2025-02-01,Monthly series built from last available close in each month.
+PTBA,Bukit Asam,PTBA,stock,Energy / Coal,IDR,Dataset-Saham-IDX GitHub raw CSV,2019-07-01,2025-02-01,Monthly series built from last available close in each month.
+TLKM,Telkom Indonesia,TLKM,stock,Telecom,IDR,Dataset-Saham-IDX GitHub raw CSV,2019-07-01,2025-02-01,Monthly series built from last available close in each month.
+UNVR,Unilever Indonesia,UNVR,stock,Consumer Staples,IDR,Dataset-Saham-IDX GitHub raw CSV,2019-07-01,2025-02-01,Monthly series built from last available close in each month.
+COAL,"Coal, Australian",Coal,commodity,Commodity,USD per metric ton,DataHub Commodity Prices v2 monthly CSV (IMF commodity prices),2019-07-01,2025-02-01,Monthly value from source series.
+EURIDR,Euro / Indonesian Rupiah,Euro,fx,FX,IDR per EUR,DataHub exchange-rates monthly CSV cross-rate via USDIDR,2019-07-01,2025-02-01,Monthly value derived from source series and USDIDR cross-rate.
+JPYIDR,Japanese Yen / Indonesian Rupiah,Japanese Yen,fx,FX,IDR per JPY,DataHub exchange-rates monthly CSV cross-rate via USDIDR,2019-07-01,2025-02-01,Monthly value derived from source series and USDIDR cross-rate.
+NICKEL,Nickel,Nickel,commodity,Commodity,USD per metric ton,DataHub Commodity Prices v2 monthly CSV (IMF commodity prices),2019-07-01,2025-02-01,Monthly value from source series.
+PALM_OIL,Palm oil,Palm oil,commodity,Commodity,USD per metric ton,DataHub Commodity Prices v2 monthly CSV (IMF commodity prices),2019-07-01,2025-02-01,Monthly value from source series.
+RICE,"Rice, Thai 5%",Rice,commodity,Commodity,USD per metric ton,DataHub Commodity Prices v2 monthly CSV (IMF commodity prices),2019-07-01,2025-02-01,Monthly value from source series.

@@ -10,8 +10,8 @@ This repo combines the visual MVP structure with the cleaned monthly data pack s
 - Local-file fallback: the HTML embeds the CSV content, so opening `index.html` directly should still work without a server
 
 ## Current scope
-- 10 Indonesian stocks: BBCA, BBRI, BMRI, TLKM, ASII, ICBP, ANTM, MDKA, ADRO, PTBA
-- Comparison series: USD/IDR, Gold, WTI Oil
+- 16 Indonesian stocks: ADRO, ANTM, ASII, BBCA, BBNI, BBRI, BMRI, GOTO, ICBP, INCO, ISAT, ITMG, MDKA, PTBA, TLKM, UNVR
+- Comparison series: USD/IDR, EUR/IDR, JPY/IDR, Gold, WTI Oil, Coal, Nickel, Palm Oil, Rice
 - Frequency: monthly
 - Coverage: 2019-07 to 2025-02
 - IHSG is not included yet in this pack
@@ -26,6 +26,7 @@ This repo combines the visual MVP structure with the cleaned monthly data pack s
 - Performance vs benchmark
 
 ### Benchmarks in relative mode
+- Rupiah
 - US Dollar
 - Gold
 - Oil

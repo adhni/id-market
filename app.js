@@ -1,9 +1,11 @@
 const COLORS = ["#0f766e", "#f97316", "#2563eb", "#dc2626", "#7c3aed", "#059669", "#d97706", "#0284c7", "#be123c", "#4f46e5"];
 const DEFAULT_SERIES = ["BBCA", "BBRI", "BMRI"];
-const MACRO_BENCHMARK_IDS = ["IDR", "USDIDR", "GOLD", "OIL_WTI"];
+const PRICE_GROWTH_BENCHMARK_IDS = ["IDR", "USDIDR", "EURIDR", "JPYIDR", "GOLD", "OIL_WTI", "COAL", "NICKEL", "PALM_OIL", "RICE"];
+const RELATIVE_BENCHMARK_IDS = ["IDR", "USDIDR", "GOLD", "OIL_WTI"];
 const CHART_DIMS = { width: 1100, height: 520, pad: { top: 28, right: 28, bottom: 56, left: 78 } };
 const TROY_OUNCE_IN_GRAMS = 31.1034768;
 const BARREL_IN_LITERS = 158.987294928;
+const METRIC_TON_IN_KILOGRAMS = 1000;
 const SERIES_GROUPS = [
   { key: "stock", title: "Stocks", caption: "Indonesian listed names grouped by sector." },
   { key: "fx", title: "FX", caption: "Currency reference series." },
@@ -26,6 +28,93 @@ const state = {
   seriesSearch: "",
   openGroups: new Set(),
   lastDisplay: { series: [], dates: [], units: [] },
+};
+
+const BENCHMARK_DEFS = {
+  IDR: {
+    label: "Rupiah (IDR)",
+    displayUnit: "IDR",
+    refs: [],
+    convert: (idrValue) => idrValue,
+  },
+  USDIDR: {
+    label: "US Dollar (USD)",
+    displayUnit: "USD",
+    refs: ["USDIDR"],
+    convert: (idrValue, date, referenceMaps) => {
+      const idrPerUnit = referenceMaps.get("USDIDR")?.get(date);
+      if (!Number.isFinite(idrPerUnit) || idrPerUnit <= 0) return NaN;
+      return idrValue / idrPerUnit;
+    },
+  },
+  EURIDR: {
+    label: "Euro (EUR)",
+    displayUnit: "EUR",
+    refs: ["EURIDR"],
+    convert: (idrValue, date, referenceMaps) => {
+      const idrPerUnit = referenceMaps.get("EURIDR")?.get(date);
+      if (!Number.isFinite(idrPerUnit) || idrPerUnit <= 0) return NaN;
+      return idrValue / idrPerUnit;
+    },
+  },
+  JPYIDR: {
+    label: "Japanese Yen (JPY)",
+    displayUnit: "JPY",
+    refs: ["JPYIDR"],
+    convert: (idrValue, date, referenceMaps) => {
+      const idrPerUnit = referenceMaps.get("JPYIDR")?.get(date);
+      if (!Number.isFinite(idrPerUnit) || idrPerUnit <= 0) return NaN;
+      return idrValue / idrPerUnit;
+    },
+  },
+  GOLD: {
+    label: "Milligram of Gold",
+    displayUnit: "mg gold",
+    refs: ["USDIDR", "GOLD"],
+    convert: (idrValue, date, referenceMaps) => {
+      const usdValue = idrToUsd(idrValue, date, referenceMaps);
+      const goldUsdPerOunce = referenceMaps.get("GOLD")?.get(date);
+      if (!Number.isFinite(usdValue) || !Number.isFinite(goldUsdPerOunce) || goldUsdPerOunce <= 0) return NaN;
+      const usdPerGram = goldUsdPerOunce / TROY_OUNCE_IN_GRAMS;
+      return (usdValue / usdPerGram) * 1000;
+    },
+  },
+  OIL_WTI: {
+    label: "Liters of Oil",
+    displayUnit: "liters oil",
+    refs: ["USDIDR", "OIL_WTI"],
+    convert: (idrValue, date, referenceMaps) => {
+      const usdValue = idrToUsd(idrValue, date, referenceMaps);
+      const oilUsdPerBarrel = referenceMaps.get("OIL_WTI")?.get(date);
+      if (!Number.isFinite(usdValue) || !Number.isFinite(oilUsdPerBarrel) || oilUsdPerBarrel <= 0) return NaN;
+      const usdPerLiter = oilUsdPerBarrel / BARREL_IN_LITERS;
+      return usdValue / usdPerLiter;
+    },
+  },
+  COAL: {
+    label: "Kilograms of Coal",
+    displayUnit: "kg coal",
+    refs: ["USDIDR", "COAL"],
+    convert: (idrValue, date, referenceMaps) => convertUsdCommodityToKilograms(idrValue, date, referenceMaps, "COAL"),
+  },
+  NICKEL: {
+    label: "Kilograms of Nickel",
+    displayUnit: "kg nickel",
+    refs: ["USDIDR", "NICKEL"],
+    convert: (idrValue, date, referenceMaps) => convertUsdCommodityToKilograms(idrValue, date, referenceMaps, "NICKEL"),
+  },
+  PALM_OIL: {
+    label: "Kilograms of Palm Oil",
+    displayUnit: "kg palm oil",
+    refs: ["USDIDR", "PALM_OIL"],
+    convert: (idrValue, date, referenceMaps) => convertUsdCommodityToKilograms(idrValue, date, referenceMaps, "PALM_OIL"),
+  },
+  RICE: {
+    label: "Kilograms of Rice",
+    displayUnit: "kg rice",
+    refs: ["USDIDR", "RICE"],
+    convert: (idrValue, date, referenceMaps) => convertUsdCommodityToKilograms(idrValue, date, referenceMaps, "RICE"),
+  },
 };
 
 async function loadTextWithFallback(path, embeddedId) {
@@ -241,13 +330,14 @@ function renderSeriesList() {
     const grid = wrapper.querySelector(".series-grid");
     items.forEach((row) => {
       const checked = state.selectedSeries.has(row.series_id);
+      const coverage = formatCoverageLabel(row);
       const label = document.createElement("label");
       label.className = `series-item ${checked ? "active" : ""}`;
       label.innerHTML = `
         <input type="checkbox" value="${row.series_id}" ${checked ? "checked" : ""} />
         <span class="series-copy">
           <span class="series-name">${row.display_name}</span>
-          <span class="series-meta">${row.short_name} · ${row.category}${row.sector ? ` · ${row.sector}` : ""}</span>
+          <span class="series-meta">${row.short_name} · ${row.category}${row.sector ? ` · ${row.sector}` : ""}${coverage ? ` · ${coverage}` : ""}</span>
         </span>
       `;
       label.querySelector("input").addEventListener("change", (event) => {
@@ -319,14 +409,33 @@ function sortMeta(a, b) {
   return (order[a.category] ?? 99) - (order[b.category] ?? 99) || a.display_name.localeCompare(b.display_name);
 }
 
+function formatCoverageLabel(row) {
+  if (!row?.coverage_start || !row?.coverage_end) return "";
+  const start = row.coverage_start.slice(0, 7);
+  const end = row.coverage_end.slice(0, 7);
+  return start === end ? start : `${start} to ${end}`;
+}
+
+function getBenchmarkDef(id = state.benchmark) {
+  return BENCHMARK_DEFS[id];
+}
+
+function idrToUsd(idrValue, date, referenceMaps) {
+  const usdIdr = referenceMaps.get("USDIDR")?.get(date);
+  if (!Number.isFinite(usdIdr) || usdIdr <= 0) return NaN;
+  return idrValue / usdIdr;
+}
+
+function convertUsdCommodityToKilograms(idrValue, date, referenceMaps, seriesId) {
+  const usdValue = idrToUsd(idrValue, date, referenceMaps);
+  const usdPerMetricTon = referenceMaps.get(seriesId)?.get(date);
+  if (!Number.isFinite(usdValue) || !Number.isFinite(usdPerMetricTon) || usdPerMetricTon <= 0) return NaN;
+  return usdValue / (usdPerMetricTon / METRIC_TON_IN_KILOGRAMS);
+}
+
 function getBenchmarkLabel(id = state.benchmark) {
-  const labels = {
-    IDR: "Rupiah (IDR)",
-    USDIDR: "US Dollar (USD)",
-    GOLD: "Milligram of Gold",
-    OIL_WTI: "Liters of Oil",
-  };
-  if (labels[id]) return labels[id];
+  const benchmarkDef = getBenchmarkDef(id);
+  if (benchmarkDef) return benchmarkDef.label;
   const stockMeta = state.metadataMap.get(id);
   if (stockMeta?.category === "stock") return `${stockMeta.short_name} stock`;
   return stockMeta?.short_name || id;
@@ -339,11 +448,7 @@ function isStockBenchmark(id = state.benchmark) {
 function getPriceReferenceSeriesIds() {
   if (state.mode !== "price" && state.mode !== "growth") return [];
   if (isStockBenchmark()) return [state.benchmark];
-  if (state.benchmark === "IDR") return [];
-  if (state.benchmark === "USDIDR") return ["USDIDR"];
-  if (state.benchmark === "GOLD") return ["USDIDR", "GOLD"];
-  if (state.benchmark === "OIL_WTI") return ["USDIDR", "OIL_WTI"];
-  return ["USDIDR"];
+  return getBenchmarkDef()?.refs || ["USDIDR"];
 }
 
 function getPriceDisplayUnit() {
@@ -351,11 +456,7 @@ function getPriceDisplayUnit() {
     const shortName = state.metadataMap.get(state.benchmark)?.short_name || state.benchmark;
     return `shares ${shortName}`;
   }
-  if (state.benchmark === "IDR") return "IDR";
-  if (state.benchmark === "USDIDR") return "USD";
-  if (state.benchmark === "GOLD") return "mg gold";
-  if (state.benchmark === "OIL_WTI") return "liters oil";
-  return "USD";
+  return getBenchmarkDef()?.displayUnit || "USD";
 }
 
 function convertPriceValue(idrValue, date, referenceMaps) {
@@ -364,30 +465,9 @@ function convertPriceValue(idrValue, date, referenceMaps) {
     if (!Number.isFinite(benchmarkIdrValue) || benchmarkIdrValue <= 0) return NaN;
     return idrValue / benchmarkIdrValue;
   }
-
-  if (state.benchmark === "IDR") return idrValue;
-
-  const usdIdr = referenceMaps.get("USDIDR")?.get(date);
-  if (!Number.isFinite(usdIdr) || usdIdr <= 0) return NaN;
-  const usdValue = idrValue / usdIdr;
-
-  if (state.benchmark === "USDIDR") return usdValue;
-
-  if (state.benchmark === "GOLD") {
-    const goldUsdPerOunce = referenceMaps.get("GOLD")?.get(date);
-    if (!Number.isFinite(goldUsdPerOunce) || goldUsdPerOunce <= 0) return NaN;
-    const usdPerGram = goldUsdPerOunce / TROY_OUNCE_IN_GRAMS;
-    return (usdValue / usdPerGram) * 1000;
-  }
-
-  if (state.benchmark === "OIL_WTI") {
-    const oilUsdPerBarrel = referenceMaps.get("OIL_WTI")?.get(date);
-    if (!Number.isFinite(oilUsdPerBarrel) || oilUsdPerBarrel <= 0) return NaN;
-    const usdPerLiter = oilUsdPerBarrel / BARREL_IN_LITERS;
-    return usdValue / usdPerLiter;
-  }
-
-  return usdValue;
+  const benchmarkDef = getBenchmarkDef();
+  if (!benchmarkDef) return NaN;
+  return benchmarkDef.convert(idrValue, date, referenceMaps);
 }
 
 function renderBenchmarkOptions() {
@@ -396,7 +476,8 @@ function renderBenchmarkOptions() {
 
   const macroGroup = document.createElement("optgroup");
   macroGroup.label = "Macro references";
-  MACRO_BENCHMARK_IDS.forEach((id) => {
+  const macroIds = state.mode === "relative" ? RELATIVE_BENCHMARK_IDS : PRICE_GROWTH_BENCHMARK_IDS;
+  macroIds.forEach((id) => {
     const shouldSkip = id !== "IDR" && !state.metadataMap.get(id);
     if (shouldSkip) return;
     macroGroup.appendChild(new Option(getBenchmarkLabel(id), id, false, id === state.benchmark));
@@ -449,11 +530,12 @@ function renderStockToggleDropdown() {
     const label = document.createElement("label");
     label.className = "stock-toggle-item";
     const checked = state.selectedSeries.has(row.series_id);
+    const coverage = formatCoverageLabel(row);
     label.innerHTML = `
       <input type="checkbox" value="${row.series_id}" ${checked ? "checked" : ""} />
       <span class="stock-toggle-copy">
         <span class="stock-toggle-name">${row.short_name}</span>
-        <span class="stock-toggle-meta">${row.display_name}</span>
+        <span class="stock-toggle-meta">${row.display_name}${coverage ? ` · ${coverage}` : ""}</span>
       </span>
     `;
 
@@ -746,7 +828,7 @@ function updateCopy() {
     chartTitle.textContent = "Growth since start";
     chartSubtitle.textContent = `Each selected series is first measured in ${benchmarkLabel}, then rebased to 100 at the first visible month.`;
     yAxisExplain.textContent = `Y-axis = growth index in ${benchmarkLabel} terms. The first visible month is 100 for every selected stock.`;
-    if (modeHelp) modeHelp.textContent = "Best default for quick comparison. Use Measure in to switch growth basis (IDR, USD, gold, oil, or stock terms).";
+    if (modeHelp) modeHelp.textContent = "Best default for quick comparison. Use Measure in to switch growth basis across currencies, commodities, or stock terms.";
     footnote.textContent = `Growth mode rebases each series to 100 after converting to ${benchmarkLabel}.`;
   } else if (state.mode === "price") {
     const benchmarkLabel = getBenchmarkLabel();
@@ -764,13 +846,13 @@ function updateCopy() {
     if (state.benchmark === "IDR") {
       chartSubtitle.textContent = "Raw monthly stock prices in Rupiah (IDR).";
       yAxisExplain.textContent = "Y-axis = stock price in Rupiah (IDR).";
-      if (modeHelp) modeHelp.textContent = "Use Measure in to switch from IDR to USD, gold milligrams, or oil liters.";
+      if (modeHelp) modeHelp.textContent = "Use Measure in to switch from IDR to currencies, commodities, or stock-vs-stock ratios.";
       footnote.textContent = "Price mode shows native monthly stock prices in IDR when Rupiah is selected.";
       return;
     }
     chartSubtitle.textContent = `Monthly stock prices converted to ${benchmarkLabel}.`;
     yAxisExplain.textContent = `Y-axis = stock value in ${benchmarkLabel}.`;
-    if (modeHelp) modeHelp.textContent = "Use Measure in to view stock values in different units.";
+    if (modeHelp) modeHelp.textContent = "Use Measure in to view stock values in different currencies, commodities, or stock terms.";
     footnote.textContent = `Price mode converts each monthly stock price using the selected reference (${benchmarkLabel}).`;
   } else {
     const benchmarkName = getBenchmarkLabel();
