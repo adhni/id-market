@@ -809,6 +809,7 @@ function render() {
   renderLegend(display.series);
   renderChart(display);
   renderSummary(display.series);
+  renderDiagnostics(display);
   updateSnapshot(display);
   syncDateRangeSlider();
   document.getElementById("coverageText").textContent = `${state.startDate?.slice(0, 7) || "-"} to ${state.endDate?.slice(0, 7) || "-"}`;
@@ -951,6 +952,254 @@ function renderSummary(displaySeries) {
   `;
 }
 
+function renderDiagnostics(display) {
+  const tbody = document.getElementById("diagnosticBody");
+  const changeUnitLabel = document.getElementById("changeUnitLabel");
+  if (!tbody) return;
+
+  hideDiagnosticTooltip();
+  const diagnostics = buildDiagnostics(display.series);
+  const unitLabel = getDiagnosticUnitLabel(display);
+  if (changeUnitLabel) changeUnitLabel.textContent = unitLabel;
+
+  renderMiniChart("changeChart", diagnostics, {
+    metricKey: "changes",
+    metricLabel: "Monthly change",
+    formatTick: formatMiniAxis,
+    formatValue: (value, item) => formatSignedDiagnostic(value, getDeltaUnit(item), false),
+  });
+  renderMiniChart("rateChart", diagnostics, {
+    metricKey: "rates",
+    metricLabel: "Rate of change",
+    formatTick: (value) => `${formatMiniAxis(value)}%`,
+    formatValue: (value) => formatSignedDiagnostic(value, "%", true),
+  });
+
+  tbody.innerHTML = "";
+  if (!diagnostics.length) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="4" class="muted">Select at least one series with two visible months to see change diagnostics.</td>
+      </tr>
+    `;
+    return;
+  }
+
+  diagnostics.forEach((item) => {
+    const latest = item.latest;
+    const deltaUnit = (state.mode === "growth" || state.mode === "relative") ? "pts" : item.rawUnit;
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${item.meta.display_name}</td>
+      <td>${formatSummaryValue(latest.value, item.rawUnit)}</td>
+      <td class="${valueTone(latest.change)}">${formatSignedDiagnostic(latest.change, deltaUnit, false)}</td>
+      <td class="${valueTone(latest.rate)}">${formatSignedDiagnostic(latest.rate, "%", true)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function buildDiagnostics(displaySeries) {
+  return displaySeries.map((series) => {
+    const changes = [];
+    const rates = [];
+
+    for (let index = 1; index < series.values.length; index++) {
+      const current = series.values[index];
+      const previous = series.values[index - 1];
+      const change = current.value - previous.value;
+      const rate = previous.value !== 0 ? (change / previous.value) * 100 : NaN;
+
+      changes.push({ date: current.date, value: change });
+      rates.push({ date: current.date, value: rate });
+    }
+
+    const latestPoint = series.values[series.values.length - 1];
+    return {
+      id: series.id,
+      meta: series.meta,
+      rawUnit: series.rawUnit,
+      changes,
+      rates,
+      latest: {
+        value: latestPoint?.value,
+        change: changes[changes.length - 1]?.value,
+        rate: rates[rates.length - 1]?.value,
+      },
+    };
+  }).filter((item) => item.changes.some((point) => Number.isFinite(point.value)));
+}
+
+function renderMiniChart(svgId, diagnostics, config) {
+  const svg = document.getElementById(svgId);
+  if (!svg) return;
+  svg.innerHTML = "";
+
+  const { metricKey, metricLabel, formatTick, formatValue } = config;
+  const width = 520;
+  const height = 220;
+  const pad = { top: 18, right: 18, bottom: 34, left: 58 };
+  const chartWidth = width - pad.left - pad.right;
+  const chartHeight = height - pad.top - pad.bottom;
+  const lines = diagnostics.map((item, index) => ({
+    id: item.id,
+    label: item.meta.short_name,
+    color: COLORS[index % COLORS.length],
+    item,
+    points: item[metricKey].filter((point) => Number.isFinite(point.value)),
+  })).filter((line) => line.points.length);
+  const allPoints = lines.flatMap((line) => line.points);
+
+  svg.insertAdjacentHTML("beforeend", `<rect x="0" y="0" width="${width}" height="${height}" rx="14" fill="rgba(255,255,255,0.52)"></rect>`);
+
+  if (!allPoints.length) {
+    svg.insertAdjacentHTML("beforeend", `<text x="${width / 2}" y="${height / 2}" text-anchor="middle" fill="#667085" font-size="13">Need more months</text>`);
+    return;
+  }
+
+  const dates = [...new Set(allPoints.map((point) => point.date))].sort();
+  const values = allPoints.map((point) => point.value);
+  let min = Math.min(...values, 0);
+  let max = Math.max(...values, 0);
+  if (min === max) {
+    min -= 1;
+    max += 1;
+  }
+  const span = max - min;
+  const x = (date) => pad.left + (dates.indexOf(date) / Math.max(dates.length - 1, 1)) * chartWidth;
+  const y = (value) => pad.top + (1 - ((value - min) / span)) * chartHeight;
+
+  buildTicks(min, max, 4).forEach((tick) => {
+    const yy = y(tick);
+    svg.insertAdjacentHTML("beforeend", `
+      <line x1="${pad.left}" y1="${yy}" x2="${width - pad.right}" y2="${yy}" stroke="rgba(107,114,128,0.14)" />
+      <text x="${pad.left - 10}" y="${yy + 4}" text-anchor="end" fill="#667085" font-size="10">${formatTick(tick)}</text>
+    `);
+  });
+
+  const zeroY = y(0);
+  svg.insertAdjacentHTML("beforeend", `<line x1="${pad.left}" y1="${zeroY}" x2="${width - pad.right}" y2="${zeroY}" stroke="rgba(24,33,43,0.28)" stroke-dasharray="4 5" />`);
+
+  const dateLabels = [dates[0], dates[Math.floor((dates.length - 1) / 2)], dates[dates.length - 1]].filter(Boolean);
+  [...new Set(dateLabels)].forEach((date) => {
+    const xx = x(date);
+    const anchor = date === dates[0] ? "start" : (date === dates[dates.length - 1] ? "end" : "middle");
+    svg.insertAdjacentHTML("beforeend", `<text x="${xx}" y="${height - 12}" text-anchor="${anchor}" fill="#667085" font-size="10">${formatMonth(date)}</text>`);
+  });
+
+  lines.forEach((line) => {
+    const points = line.points.map((point) => `${x(point.date)},${y(point.value)}`).join(" ");
+    const last = line.points[line.points.length - 1];
+    svg.insertAdjacentHTML("beforeend", `
+      <polyline fill="none" stroke="${line.color}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" points="${points}" />
+      <circle cx="${x(last.date)}" cy="${y(last.value)}" r="3.8" fill="${line.color}" />
+    `);
+  });
+
+  svg.insertAdjacentHTML("beforeend", `
+    <g id="${svgId}HoverLayer"></g>
+    <rect id="${svgId}Overlay" x="${pad.left}" y="${pad.top}" width="${chartWidth}" height="${chartHeight}" fill="transparent" style="cursor:crosshair"></rect>
+  `);
+
+  const overlay = document.getElementById(`${svgId}Overlay`);
+  const hoverLayer = document.getElementById(`${svgId}HoverLayer`);
+  const showHover = (event) => {
+    const pointer = event.touches?.[0] || event;
+    const bounds = svg.getBoundingClientRect();
+    const scaledX = ((pointer.clientX - bounds.left) / bounds.width) * width;
+    const ratio = Math.max(0, Math.min(1, (scaledX - pad.left) / chartWidth));
+    const dateIndex = Math.round(ratio * Math.max(dates.length - 1, 0));
+    const date = dates[dateIndex];
+    const xx = x(date);
+    const rows = lines.map((line) => {
+      const point = line.points.find((item) => item.date === date);
+      return { ...line, value: point?.value };
+    }).filter((row) => Number.isFinite(row.value));
+
+    hoverLayer.innerHTML = `
+      <line x1="${xx}" y1="${pad.top}" x2="${xx}" y2="${height - pad.bottom}" stroke="rgba(15,23,42,0.24)" stroke-dasharray="4 5" />
+      ${rows.map((row) => `<circle cx="${xx}" cy="${y(row.value)}" r="4.5" fill="white" stroke="${row.color}" stroke-width="2.5" />`).join("")}
+    `;
+    renderDiagnosticTooltip(svg, pointer, metricLabel, date, rows, formatValue);
+  };
+
+  overlay.addEventListener("mousemove", showHover);
+  overlay.addEventListener("mouseleave", () => {
+    hoverLayer.innerHTML = "";
+    hideDiagnosticTooltip();
+  });
+  overlay.addEventListener("touchstart", showHover, { passive: true });
+  overlay.addEventListener("touchmove", showHover, { passive: true });
+}
+
+function getDiagnosticUnitLabel(display) {
+  if (state.mode === "growth" || state.mode === "relative") return "Index points";
+  if (display.units?.length === 1) return `Delta ${display.units[0]}`;
+  return "Delta";
+}
+
+function valueTone(value) {
+  if (!Number.isFinite(value) || value === 0) return "";
+  return value > 0 ? "positive" : "negative";
+}
+
+function getDeltaUnit(item) {
+  return (state.mode === "growth" || state.mode === "relative") ? "pts" : item.rawUnit;
+}
+
+function renderDiagnosticTooltip(svg, pointer, title, date, rows, formatValue) {
+  const tooltip = document.getElementById("diagnosticTooltip");
+  const shell = document.getElementById("changeDiagnostics");
+  if (!tooltip || !shell || !rows.length) return;
+
+  tooltip.innerHTML = `
+    <div class="tooltip-date">${title} · ${formatMonth(date)}</div>
+    ${rows.map((row) => `
+      <div class="tooltip-row">
+        <span class="tooltip-series"><span class="legend-swatch" style="background:${row.color}"></span>${row.label}</span>
+        <span class="${valueTone(row.value)}">${formatValue(row.value, row.item)}</span>
+      </div>
+    `).join("")}
+  `;
+  tooltip.setAttribute("aria-hidden", "false");
+
+  const shellRect = shell.getBoundingClientRect();
+  const svgRect = svg.getBoundingClientRect();
+  const tooltipWidth = 230;
+  const left = Math.min(
+    Math.max(pointer.clientX - shellRect.left + 12, 10),
+    shellRect.width - tooltipWidth - 10
+  );
+  const top = Math.max(48, pointer.clientY - shellRect.top - 12);
+  tooltip.style.left = `${left}px`;
+  tooltip.style.top = `${Math.min(top, svgRect.bottom - shellRect.top - 80)}px`;
+}
+
+function hideDiagnosticTooltip() {
+  const tooltip = document.getElementById("diagnosticTooltip");
+  if (!tooltip) return;
+  tooltip.setAttribute("aria-hidden", "true");
+  tooltip.innerHTML = "";
+}
+
+function formatSignedDiagnostic(value, unit, isRateLike) {
+  if (!Number.isFinite(value)) return "-";
+  const sign = value > 0 ? "+" : "";
+  const formatted = isRateLike ? value.toFixed(2) : formatRawValue(value);
+  if (unit === "%") return `${sign}${formatted}%`;
+  if (unit === " pp") return `${sign}${formatted} pp`;
+  return `${sign}${formatted}${unit ? ` ${unit}` : ""}`;
+}
+
+function formatMiniAxis(value) {
+  if (!Number.isFinite(value)) return "-";
+  const abs = Math.abs(value);
+  if (abs >= 1000) return value.toLocaleString(undefined, { maximumFractionDigits: 0 });
+  if (abs >= 100) return value.toFixed(0);
+  if (abs >= 10) return value.toFixed(1);
+  return value.toFixed(2);
+}
+
 function renderChart(display) {
   const svg = document.getElementById("chart");
   const tooltip = document.getElementById("chartTooltip");
@@ -1008,12 +1257,21 @@ function renderChart(display) {
   }
 
   const step = Math.max(1, Math.floor(dates.length / 6));
-  dates.forEach((date, index) => {
-    if (index % step !== 0 && index !== dates.length - 1) return;
+  const labelIndexes = dates
+    .map((_, index) => index)
+    .filter((index) => index % step === 0 || index === dates.length - 1);
+  if (labelIndexes.length >= 2) {
+    const last = labelIndexes[labelIndexes.length - 1];
+    const previous = labelIndexes[labelIndexes.length - 2];
+    if (last - previous <= 1) labelIndexes.splice(labelIndexes.length - 2, 1);
+  }
+  labelIndexes.forEach((index) => {
+    const date = dates[index];
     const xx = x(index);
+    const anchor = index === 0 ? "start" : (index === dates.length - 1 ? "end" : "middle");
     svg.insertAdjacentHTML("beforeend", `
       <line x1="${xx}" y1="${height - pad.bottom + 6}" x2="${xx}" y2="${height - pad.bottom + 12}" stroke="rgba(107,114,128,0.5)" />
-      <text x="${xx}" y="${height - 18}" text-anchor="middle" fill="#6b7280" font-size="12">${formatMonth(date)}</text>
+      <text x="${xx}" y="${height - 18}" text-anchor="${anchor}" fill="#6b7280" font-size="12">${formatMonth(date)}</text>
     `);
   });
 

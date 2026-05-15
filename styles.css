@@ -830,6 +830,122 @@ select,
   margin: 6px 2px 0;
 }
 
+.change-diagnostics {
+  position: relative;
+  margin-top: 10px;
+  border: 1px solid rgba(24, 33, 43, 0.08);
+  border-radius: var(--radius-lg);
+  background: rgba(255,255,255,0.42);
+  overflow: hidden;
+}
+
+.change-diagnostics-summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+}
+
+.change-diagnostics-summary::-webkit-details-marker {
+  display: none;
+}
+
+.change-diagnostics-summary > div {
+  display: grid;
+  gap: 3px;
+}
+
+.change-diagnostics-summary h3,
+.diagnostic-head h4 {
+  margin: 0;
+}
+
+.change-diagnostics-summary::after {
+  content: "+";
+  font-size: 20px;
+  line-height: 1;
+  color: var(--muted);
+}
+
+.change-diagnostics[open] .change-diagnostics-summary {
+  border-bottom: 1px solid rgba(24, 33, 43, 0.08);
+}
+
+.change-diagnostics[open] .change-diagnostics-summary::after {
+  content: "−";
+  color: var(--accent);
+}
+
+.diagnostic-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 10px;
+}
+
+.diagnostic-card {
+  min-width: 0;
+  border: 1px solid rgba(24, 33, 43, 0.08);
+  border-radius: var(--radius-md);
+  background: rgba(255,255,255,0.56);
+  overflow: hidden;
+}
+
+.diagnostic-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+  padding: 9px 10px 0;
+}
+
+.diagnostic-head h4 {
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.diagnostic-head span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.mini-chart {
+  width: 100%;
+  height: 178px;
+  display: block;
+}
+
+.diagnostic-table-wrap {
+  padding: 0 10px 10px;
+}
+
+.diagnostic-tooltip {
+  position: absolute;
+  z-index: 15;
+  width: 230px;
+  padding: 10px;
+  border-radius: 14px;
+  background: rgba(24, 33, 43, 0.94);
+  color: white;
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.2);
+  pointer-events: none;
+}
+
+.diagnostic-tooltip[aria-hidden="true"] {
+  display: none;
+}
+
+.diagnostic-tooltip .tooltip-row {
+  grid-template-columns: 1fr auto;
+}
+
 .compact-panel {
   padding-block: 8px;
 }
@@ -870,6 +986,7 @@ select,
 .preset-row button:focus-visible,
 .timeframe-buttons button:focus-visible,
 .compact-summary:focus-visible,
+.change-diagnostics-summary:focus-visible,
 .section-summary:focus-visible,
 .search-input:focus-visible,
 select:focus-visible,
@@ -1098,6 +1215,7 @@ th {
   .control-strip,
   .snapshot-bar,
   .summary-highlights,
+  .diagnostic-grid,
   .series-grid {
     grid-template-columns: 1fr;
   }

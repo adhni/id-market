@@ -112,6 +112,44 @@
             <div id="chartEmptyState" class="chart-empty hidden"></div>
           </div>
           <p class="chart-hint muted" id="chartReadingHint">Priced in US Dollar (USD)</p>
+          <details class="change-diagnostics" id="changeDiagnostics" open>
+            <summary class="change-diagnostics-summary">
+              <div>
+                <h3>Change diagnostics</h3>
+                <p class="muted">First-difference view for the visible window.</p>
+              </div>
+            </summary>
+            <div class="diagnostic-grid">
+              <article class="diagnostic-card">
+                <div class="diagnostic-head">
+                  <h4>Monthly change</h4>
+                  <span id="changeUnitLabel">Delta</span>
+                </div>
+                <svg id="changeChart" class="mini-chart" viewBox="0 0 520 220" preserveAspectRatio="none" aria-label="Monthly change chart"></svg>
+              </article>
+              <article class="diagnostic-card">
+                <div class="diagnostic-head">
+                  <h4>Rate of change</h4>
+                  <span>% per month</span>
+                </div>
+                <svg id="rateChart" class="mini-chart" viewBox="0 0 520 220" preserveAspectRatio="none" aria-label="Rate of change chart"></svg>
+              </article>
+            </div>
+            <div id="diagnosticTooltip" class="diagnostic-tooltip" aria-hidden="true"></div>
+            <div class="table-wrap diagnostic-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Series</th>
+                    <th>Latest</th>
+                    <th>Change</th>
+                    <th>Rate</th>
+                  </tr>
+                </thead>
+                <tbody id="diagnosticBody"></tbody>
+              </table>
+            </div>
+          </details>
           <p id="chartFootnote" class="chart-footnote muted">All values come from the bundled monthly files. Hover or tap inside the chart to inspect a month.</p>
         </section>
 
