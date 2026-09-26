@@ -10,7 +10,8 @@ Live site: https://adhni.github.io/id-market/
 - Monthly history from **January 2010 to August 2026**, with shorter histories for newer listings.
 - Start with banks, stocks vs gold, coal, nickel, or the broad market; search by ticker, company, sector, or asset name.
 - Growth starts every line at 100. IDR is the default; other measuring references are available.
-- The optional Rp1 million illustration follows each line's price movement. It excludes dividends and costs; indexes and commodities are comparison proxies.
+- A desktop workspace puts the chart beside a comparison list. Switch the list between percentage change and an Rp1 million illustration. Dividends and costs are excluded; indexes and commodities are comparison proxies.
+- Stable asset colors connect the chart, sparklines, and results. Hover or focus an asset to highlight its line. Search and category filters share one asset selector; custom dates sit beside the period shortcuts.
 - Price mode is for comparable raw units. Mixed assets and indexes use Growth or Vs benchmark.
 - Comparisons use dates shared by every selected line and required reference. The page shows the actual shared window.
 
@@ -56,4 +57,4 @@ Browser smoke checks require an installed Playwright package and Google Chrome, 
 node tests/browser-smoke.cjs
 ```
 
-If Playwright is installed elsewhere, set `NODE_PATH` to that installation's `node_modules` directory. Browser checks cover presets, search, benchmarks, price mode, reset, empty selections, the money illustration, mobile layout, and direct-file fallback. Preview screenshots are written to the system temporary directory.
+If Playwright is installed elsewhere, set `NODE_PATH` to that installation's `node_modules` directory. Browser checks cover the desktop layout, presets, stable colors and linked highlights, category filters and search, custom dates, benchmarks, price mode, reset, empty selections, the money illustration, a basic narrow-screen fallback, and direct-file opening. Preview screenshots are written to the system temporary directory.
