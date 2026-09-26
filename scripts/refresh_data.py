@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 START = "2010-01-01"
 END = dt.date.today().replace(day=1).isoformat()
 SERIES_FIELDS = "date series_id display_name category value unit frequency".split()
-META_FIELDS = "series_id display_name short_name category sector currency_or_unit source coverage_start coverage_end notes".split()
+META_FIELDS = "series_id display_name short_name category sector currency_or_unit source coverage_start coverage_end notes currency country exchange".split()
 NS = {"s": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
 
 
@@ -41,7 +41,7 @@ def yahoo(item):
     if not values:
         raise ValueError(f"No monthly data for {item['id']}")
     # Prefer the provider's current company name after renames/mergers.
-    if item["category"] == "stock":
+    if item["category"] == "stock" and item.get("country") == "Indonesia":
         item = dict(item, name=data["meta"].get("longName") or item["name"])
     print(f"{item['id']}: {len(values)} months, through {max(values)}", flush=True)
     return item, values, url, "Monthly close from Yahoo Finance; provider split adjustments; excludes cash dividends."
@@ -95,7 +95,7 @@ def commodities():
                 values[date] = value
         if not values:
             raise ValueError(f"No commodity data for {id}")
-        item = dict(id=id, name=name, category="commodity", sector="Commodity", unit=unit)
+        item = dict(id=id, name=name, category="commodity", sector="Commodity", unit=unit, currency="USD", country="Global", exchange="World Bank")
         result.append((item, values, url, "World Bank Pink Sheet monthly average; illustrative comparison with month-end financial prices."))
         print(f"{id}: {len(values)} months, through {max(values)}", flush=True)
     return result
@@ -117,12 +117,18 @@ def main():
     catalog = json.loads((ROOT / "data/catalog.json").read_text())
     with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
         results = list(pool.map(yahoo, catalog))
+    # Yahoo has USD/INR history; derive IDR/INR from the two USD pairs.
+    usd_idr = next(values for item, values, _, _ in results if item["id"] == "USDIDR")
+    for index, (item, values, source, notes) in enumerate(results):
+        if item.get("cross_via_usd"):
+            values = {date: usd_idr[date] / value for date, value in values.items() if date in usd_idr}
+            results[index] = (item, values, source + " ; USDIDR (IDR=X)", "Monthly IDR cross-rate derived as USDIDR divided by the currency per USD.")
     results += commodities()
     series, metadata = [], []
     for item, values, source, notes in results:
         for date, value in sorted(values.items()):
             series.append(dict(zip(SERIES_FIELDS, [date, item["id"], item["name"], item["category"], round(value, 6), item["unit"], "monthly"])))
-        metadata.append(dict(zip(META_FIELDS, [item["id"], item["name"], item["id"] if item["category"] in ("stock", "index") else item["name"], item["category"], item["sector"], item["unit"], source, min(values), max(values), notes])))
+        metadata.append(dict(zip(META_FIELDS, [item["id"], item["name"], item.get("short_name", item["id"] if item["category"] in ("stock", "index") else item["name"]), item["category"], item["sector"], item["unit"], source, min(values), max(values), notes, item["currency"], item["country"], item["exchange"]])))
     # Write only after all sources have downloaded and parsed successfully.
     for name, fields, rows in [("series", SERIES_FIELDS, series), ("metadata", META_FIELDS, metadata)]:
         path = ROOT / "data" / f"{name}.csv"

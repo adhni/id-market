@@ -1,5 +1,5 @@
 const COLORS = ["#5be3b1", "#82b7ff", "#efc66c", "#bb9df2", "#edac91", "#d9ff57", "#76d6dc", "#dfa5cf", "#abc6a0", "#c6cfe0"];
-const SERIES_COLORS = { IHSG: COLORS[0], BBCA: COLORS[1], GOLD: COLORS[2], USDIDR: COLORS[3], BBRI: COLORS[4], BMRI: COLORS[6], BBNI: COLORS[5], LQ45: COLORS[7], COAL: COLORS[2], ADRO: COLORS[0], PTBA: COLORS[1], ITMG: COLORS[3], NICKEL: COLORS[0], ANTM: COLORS[2], INCO: COLORS[1], MDKA: COLORS[3] };
+const SERIES_COLORS = { IHSG: COLORS[0], BBCA: COLORS[1], GOLD: COLORS[2], USDIDR: COLORS[3], BBRI: COLORS[4], BMRI: COLORS[6], BBNI: COLORS[5], LQ45: COLORS[7], COAL: COLORS[2], ADRO: COLORS[0], PTBA: COLORS[1], ITMG: COLORS[3], NICKEL: COLORS[0], ANTM: COLORS[1], INCO: COLORS[6], MDKA: COLORS[3], SP500: COLORS[1], NASDAQ100: COLORS[5], ASX200: COLORS[2], NIKKEI: COLORS[3], HANGSENG: COLORS[7], NIFTY50: COLORS[5], STI: COLORS[4], KLCI: COLORS[1], AAPL: COLORS[3], MSFT: COLORS[6], NVDA: COLORS[2], TSM: COLORS[1], GOTO: COLORS[3], BTC: COLORS[4], ETH: COLORS[6], DBS: COLORS[2], CBA: COLORS[3], BHP: COLORS[3], ASII: COLORS[0], TOYOTA: COLORS[1], TSLA: COLORS[3] };
 function seriesColor(id) {
   if (SERIES_COLORS[id]) return SERIES_COLORS[id];
   const hash = [...id].reduce((sum, char) => sum * 31 + char.charCodeAt(0), 0);
@@ -9,8 +9,8 @@ function escapeHTML(value) {
   return String(value).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
 }
 const DEFAULT_SERIES = ["IHSG", "BBCA", "GOLD", "USDIDR"];
-const PRICE_GROWTH_BENCHMARK_IDS = ["IDR", "USDIDR", "EURIDR", "JPYIDR", "GOLD", "OIL_WTI", "COAL", "NICKEL", "PALM_OIL", "RICE"];
-const RELATIVE_BENCHMARK_IDS = ["IDR", "USDIDR", "GOLD", "OIL_WTI", "IHSG", "LQ45"];
+const PRICE_GROWTH_BENCHMARK_IDS = ["IDR", "USDIDR", "EURIDR", "JPYIDR", "AUDIDR", "SGDIDR", "MYRIDR", "HKDIDR", "INRIDR", "GOLD", "OIL_WTI", "COAL", "NICKEL", "PALM_OIL", "RICE"];
+const RELATIVE_BENCHMARK_IDS = ["IDR", "USDIDR", "EURIDR", "JPYIDR", "AUDIDR", "SGDIDR", "MYRIDR", "HKDIDR", "INRIDR", "GOLD", "OIL_WTI"];
 const CHART_DIMS = { width: 1100, height: 520, pad: { top: 28, right: 28, bottom: 56, left: 78 } };
 const TROY_OUNCE_IN_GRAMS = 31.1034768;
 const BARREL_IN_LITERS = 158.987294928;
@@ -29,6 +29,8 @@ const state = {
   allDates: [],
   hoverIndex: null,
   assetCategory: "all",
+  assetCountry: "all",
+  collection: "indonesia",
   activePreset: "default",
   resultMode: "percent",
   highlightedSeries: null,
@@ -122,6 +124,70 @@ const BENCHMARK_DEFS = {
   },
 };
 
+const WORLD_MARKETS = ["IHSG", "SP500", "NASDAQ100", "ASX200", "STI", "KLCI", "NIKKEI", "HANGSENG", "NIFTY50"];
+const COLLECTIONS = {
+  indonesia: [["default", "Overview"], ["banks", "Banks"], ["gold", "Stocks vs gold"], ["commodities", "Coal"], ["nickel", "Nickel"], ["market", "Market indexes"]],
+  world: [["global", "Indonesia vs world"], ["neighbours", "Our neighbours"], ["asia", "Across Asia"], ["us", "US companies"]],
+  themes: [["globalbanks", "Banks across borders"], ["tech", "Technology"], ["digital", "Gold vs crypto"], ["resources", "Resources"], ["automotive", "Automotive"]],
+};
+for (const [currency, label] of Object.entries({ AUD: "Australian Dollar", SGD: "Singapore Dollar", MYR: "Malaysian Ringgit", HKD: "Hong Kong Dollar", INR: "Indian Rupee" })) {
+  const id = currency + "IDR";
+  BENCHMARK_DEFS[id] = { label: `${label} (${currency})`, displayUnit: currency, refs: [id],
+    convert: (value, date, refs) => value / refs.get(id)?.get(date) };
+}
+
+function currencyRefs(meta) {
+  if (!meta || meta.category === "fx") return [];
+  const currency = meta.currency || (meta.category === "commodity" ? "USD" : "IDR");
+  return currency === "IDR" ? [] : [currency + "IDR"];
+}
+
+function renderCollections() {
+  document.querySelectorAll("[data-collection]").forEach((button) => {
+    const active = button.dataset.collection === state.collection;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", active);
+  });
+  document.getElementById("presetButtons").innerHTML = COLLECTIONS[state.collection].map(([id, label]) =>
+    `<button type="button" data-preset="${id}" aria-pressed="${state.activePreset === id}" class="${state.activePreset === id ? "active" : ""}">${label}</button>`).join("");
+  document.getElementById("worldOverview").hidden = state.collection !== "world";
+}
+
+function renderWorldOverview() {
+  if (state.collection !== "world") return;
+  document.getElementById("worldContext").textContent = `${formatMonth(state.startDate)} — ${formatMonth(state.endDate)} · Measured in ${getBenchmarkLabel()}`;
+  const host = document.getElementById("worldMarkets");
+  host.innerHTML = "";
+  for (const id of WORLD_MARKETS) {
+    const display = buildDisplaySeries({ ids: [id], mode: "growth" });
+    const meta = state.metadataMap.get(id);
+    if (!meta) continue;
+    const series = display.series[0];
+    const pct = series ? series.values.at(-1).value - 100 : null;
+    const selected = state.selectedSeries.has(id);
+    const values = series?.values.map((point) => point.value) || [];
+    const min = Math.min(...values), span = Math.max(...values) - min || 1;
+    const points = values.map((value, index) => `${index / Math.max(values.length - 1, 1) * 70},${24 - (value - min) / span * 22}`).join(" ");
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `world-market ${selected ? "selected" : ""}`;
+    button.dataset.market = id;
+    button.setAttribute("aria-pressed", selected);
+    button.setAttribute("aria-label", `${selected ? "Remove" : "Add"} ${meta.short_name}`);
+    button.title = series ? `${formatMonth(display.dates[0])} — ${formatMonth(display.dates.at(-1))}` : "No history in this period";
+    button.innerHTML = `<span class="world-country">${escapeHTML(meta.country)}</span><strong>${escapeHTML(meta.short_name)}</strong><svg class="world-sparkline" viewBox="0 0 72 26" aria-hidden="true"><polyline points="${points}" fill="none" stroke="${seriesColor(id)}" stroke-width="1.5" /></svg><span class="world-move ${valueTone(pct)}">${pct == null ? "—" : `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`}</span><span class="world-action" aria-hidden="true">${selected ? "✓" : "+"}</span>`;
+    button.addEventListener("click", () => {
+      if (state.selectedSeries.has(id)) state.selectedSeries.delete(id);
+      else state.selectedSeries.add(id);
+      if (state.mode === "price") state.mode = "growth";
+      state.activePreset = null;
+      state.hoverIndex = null;
+      render();
+    });
+    host.appendChild(button);
+  }
+}
+
 async function loadTextWithFallback(path, embeddedId) {
   try {
     const response = await fetch(path);
@@ -200,6 +266,14 @@ function setupControls() {
   renderStockToggleDropdown();
   populateDateSelects();
   setupModeButtons();
+  renderCollections();
+  const countries = [...new Set(state.metadata.map((row) => row.country))].filter(Boolean).sort();
+  const countrySelect = document.getElementById("assetCountry");
+  countries.forEach((country) => countrySelect.add(new Option(country, country)));
+  countrySelect.addEventListener("change", () => { state.assetCountry = countrySelect.value; renderStockToggleDropdown(); });
+  document.querySelectorAll("[data-collection]").forEach((button) => {
+    button.addEventListener("click", () => { state.collection = button.dataset.collection; renderCollections(); render(); });
+  });
   document.getElementById("clearComparison").addEventListener("click", () => applyPreset("clear"));
   document.getElementById("benchmarkSelect").addEventListener("change", (event) => {
     state.benchmark = event.target.value;
@@ -219,6 +293,10 @@ function setupControls() {
   document.getElementById("resetSelections").addEventListener("click", () => {
     state.resultMode = "percent";
     state.assetCategory = "all";
+    state.assetCountry = "all";
+    state.collection = "indonesia";
+    document.getElementById("assetCountry").value = "all";
+    renderCollections();
     document.getElementById("stockToggleSearch").value = "";
     document.querySelectorAll(".toolbar details").forEach((el) => { el.open = false; });
     applyPreset("default");
@@ -227,8 +305,9 @@ function setupControls() {
   document.querySelectorAll("#timeframeButtons button").forEach((button) => {
     button.addEventListener("click", () => applyTimeframe(button.dataset.range));
   });
-  document.querySelectorAll("#presetButtons button").forEach((button) => {
-    button.addEventListener("click", () => applyPreset(button.dataset.preset));
+  document.getElementById("presetButtons").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-preset]");
+    if (button) applyPreset(button.dataset.preset);
   });
   document.querySelectorAll("#assetFilters button").forEach((button) => {
     button.addEventListener("click", () => {
@@ -287,6 +366,15 @@ function applyPreset(preset) {
     nickel: ["NICKEL", "ANTM", "INCO", "MDKA"],
     market: ["IHSG", "LQ45", "ASII"],
     commodities: ["COAL", "ADRO", "PTBA", "ITMG"],
+    global: ["IHSG", "SP500", "ASX200", "NIKKEI"],
+    neighbours: ["IHSG", "STI", "KLCI"],
+    asia: ["IHSG", "NIKKEI", "HANGSENG", "NIFTY50"],
+    us: ["SP500", "NASDAQ100", "AAPL", "MSFT"],
+    globalbanks: ["BBCA", "DBS", "CBA"],
+    tech: ["NVDA", "MSFT", "TSM", "GOTO"],
+    digital: ["GOLD", "BTC", "ETH"],
+    resources: ["BHP", "ANTM", "NICKEL", "GOLD"],
+    automotive: ["ASII", "TOYOTA", "TSLA"],
     clear: [],
   };
   state.selectedSeries = new Set((presetMap[preset] || []).filter((id) => state.metadataMap.has(id)));
@@ -329,26 +417,26 @@ function isStockBenchmark(id = state.benchmark) {
   return ["stock", "index"].includes(state.metadataMap.get(id)?.category);
 }
 
-function getPriceReferenceSeriesIds() {
-  if (isStockBenchmark()) return [state.benchmark];
-  return getBenchmarkDef()?.refs || ["USDIDR"];
+function getPriceReferenceSeriesIds(benchmark = state.benchmark) {
+  if (isStockBenchmark(benchmark)) return [benchmark, ...currencyRefs(state.metadataMap.get(benchmark))];
+  return getBenchmarkDef(benchmark)?.refs || ["USDIDR"];
 }
 
-function getPriceDisplayUnit() {
-  if (isStockBenchmark()) {
-    const shortName = state.metadataMap.get(state.benchmark)?.short_name || state.benchmark;
+function getPriceDisplayUnit(benchmark = state.benchmark) {
+  if (isStockBenchmark(benchmark)) {
+    const shortName = state.metadataMap.get(benchmark)?.short_name || benchmark;
     return `shares ${shortName}`;
   }
-  return getBenchmarkDef()?.displayUnit || "USD";
+  return getBenchmarkDef(benchmark)?.displayUnit || "USD";
 }
 
-function convertPriceValue(idrValue, date, referenceMaps) {
-  if (isStockBenchmark()) {
-    const benchmarkIdrValue = referenceMaps.get(state.benchmark)?.get(date);
+function convertPriceValue(idrValue, date, referenceMaps, benchmark = state.benchmark) {
+  if (isStockBenchmark(benchmark)) {
+    const benchmarkIdrValue = valueInIDR(referenceMaps.get(benchmark)?.get(date), state.metadataMap.get(benchmark), date, referenceMaps);
     if (!Number.isFinite(benchmarkIdrValue) || benchmarkIdrValue <= 0) return NaN;
     return idrValue / benchmarkIdrValue;
   }
-  const benchmarkDef = getBenchmarkDef();
+  const benchmarkDef = getBenchmarkDef(benchmark);
   if (!benchmarkDef) return NaN;
   return benchmarkDef.convert(idrValue, date, referenceMaps);
 }
@@ -368,9 +456,9 @@ function renderBenchmarkOptions() {
   select.appendChild(macroGroup);
 
   const stockGroup = document.createElement("optgroup");
-  stockGroup.label = "Individual stocks";
+  stockGroup.label = "Stocks & market indexes";
   const stockRows = [...state.metadata]
-    .filter((row) => row.category === "stock")
+    .filter((row) => ["stock", "index"].includes(row.category))
     .sort((a, b) => a.short_name.localeCompare(b.short_name));
   stockRows.forEach((row) => {
     const label = `${row.short_name} · ${row.display_name}`;
@@ -393,7 +481,8 @@ function renderStockToggleDropdown() {
     button.setAttribute("aria-pressed", active);
   });
   const rows = state.metadata.filter((row) => (state.assetCategory === "all" || row.category === state.assetCategory) &&
-    `${row.series_id} ${row.display_name} ${row.short_name} ${row.sector} ${row.category}`.toLowerCase().includes(search)
+    (state.assetCountry === "all" || row.country === state.assetCountry) &&
+    `${row.series_id} ${row.display_name} ${row.short_name} ${row.sector} ${row.category} ${row.country} ${row.exchange} ${row.currency}`.toLowerCase().includes(search)
   ).sort((a, b) => Number(state.selectedSeries.has(b.series_id)) - Number(state.selectedSeries.has(a.series_id)) || a.short_name.localeCompare(b.short_name));
   host.innerHTML = "";
   for (const row of rows) {
@@ -401,7 +490,7 @@ function renderStockToggleDropdown() {
     label.className = "stock-toggle-item";
     label.innerHTML = `<input type="checkbox" value="${escapeHTML(row.series_id)}" ${state.selectedSeries.has(row.series_id) ? "checked" : ""} />
       <span class="picker-swatch" style="background:${seriesColor(row.series_id)}"></span>
-      <span class="stock-toggle-copy"><strong>${escapeHTML(row.short_name)}</strong><span>${escapeHTML(row.display_name)}</span></span><span class="asset-category">${escapeHTML(row.category === "fx" ? "FX" : row.category)}</span>`;
+      <span class="stock-toggle-copy"><strong>${escapeHTML(row.short_name)}</strong><span>${escapeHTML(row.display_name)} · ${escapeHTML(row.exchange)} · ${escapeHTML(row.currency)}</span></span><span class="asset-category">${escapeHTML(row.category === "fx" ? "FX" : row.category)}</span>`;
     label.querySelector("input").addEventListener("change", (event) => {
       if (event.target.checked) state.selectedSeries.add(row.series_id);
       else state.selectedSeries.delete(row.series_id);
@@ -490,35 +579,33 @@ function alignSeriesToDates(seriesId, dates) {
 // All comparisons share an IDR basis before changing the measuring reference.
 // Index levels are normalized proxies, not purchasable shares.
 function valueInIDR(value, meta, date, referenceMaps) {
-  if (meta.category === "commodity") {
-    return value * referenceMaps.get("USDIDR")?.get(date);
-  }
-  return value;
+  const refs = currencyRefs(meta);
+  return refs.length ? value * referenceMaps.get(refs[0])?.get(date) : value;
 }
 
-function transformSeries(alignedRows, meta, referenceMaps) {
+function transformSeries(alignedRows, meta, referenceMaps, mode = state.mode, benchmark = state.benchmark) {
   const converted = alignedRows.map((row) => ({
     date: row.date,
-    value: convertPriceValue(valueInIDR(row.value, meta, row.date, referenceMaps), row.date, referenceMaps),
+    value: convertPriceValue(valueInIDR(row.value, meta, row.date, referenceMaps), row.date, referenceMaps, benchmark),
   }));
   if (converted.some((row) => !Number.isFinite(row.value))) return [];
-  if (state.mode === "price") return converted;
+  if (mode === "price") return converted;
   const first = converted[0]?.value;
   if (!Number.isFinite(first) || first <= 0) return [];
   return converted.map((row) => ({ date: row.date, value: row.value / first * 100 }));
 }
 
-function buildDisplaySeries() {
-  const selected = [...state.selectedSeries].filter((id) => state.seriesMap.has(id));
+function buildDisplaySeries({ ids = [...state.selectedSeries], mode = state.mode, benchmark = state.benchmark } = {}) {
+  const selected = ids.filter((id) => state.seriesMap.has(id));
   if (!selected.length) return { series: [], dates: [], reason: "no-selection", units: [] };
   // Raw prices with unlike underlying units are not a useful shared axis.
   const metas = selected.map((id) => state.metadataMap.get(id));
-  if (state.mode === "price" && (metas.some((m) => m.category === "index") || new Set(metas.map((m) => m.currency_or_unit)).size > 1)) {
+  if (mode === "price" && (metas.some((m) => m.category === "index") || new Set(metas.map((m) => m.category === "stock" ? "share" : m.currency_or_unit)).size > 1)) {
     return { series: [], dates: [], reason: "mixed-price", units: [] };
   }
   const referenceIds = [...new Set([
-    ...getPriceReferenceSeriesIds(),
-    ...(metas.some((m) => m.category === "commodity") ? ["USDIDR"] : []),
+    ...getPriceReferenceSeriesIds(benchmark),
+    ...metas.flatMap(currencyRefs),
   ])];
   const commonDates = getCommonDates([...selected, ...referenceIds]);
   if (!commonDates.length) return { series: [], dates: [], reason: "no-common-dates", units: [] };
@@ -529,8 +616,8 @@ function buildDisplaySeries() {
     const meta = state.metadataMap.get(id);
     return {
       id, meta,
-      rawUnit: state.mode === "price" ? getPriceDisplayUnit() : "index",
-      values: transformSeries(alignSeriesToDates(id, commonDates), meta, referenceMaps),
+      rawUnit: mode === "price" ? getPriceDisplayUnit(benchmark) : "index",
+      values: transformSeries(alignSeriesToDates(id, commonDates), meta, referenceMaps, mode, benchmark),
     };
   }).filter((entry) => entry.values.length);
   return { series, dates: commonDates, units: [...new Set(series.map((s) => s.rawUnit))], reason: series.length ? null : "no-values" };
@@ -575,6 +662,7 @@ function render() {
   renderSummary(display.series);
   renderDiagnostics(display);
   updateSnapshot(display);
+  renderWorldOverview();
   document.querySelectorAll("#presetButtons button").forEach((button) => {
     const active = button.dataset.preset === state.activePreset;
     button.classList.toggle("active", active);
@@ -588,7 +676,7 @@ function updateCopy() {
   const relative = state.mode === "relative";
   document.getElementById("chartTitle").textContent = price ? "Price over time." : relative ? `Against ${label}.` : "A common starting point.";
   document.getElementById("chartSubtitle").textContent = price ? `Monthly prices in ${label}.` : relative ? "Above 100 = ahead of the benchmark." : "All assets start at 100. A value of 120 means a 20% increase.";
-  document.getElementById("chartBasis").textContent = `${price ? "PRICE" : "BASE 100"} / ${state.benchmark === "USDIDR" ? "USD" : state.benchmark}`;
+  document.getElementById("chartBasis").textContent = `${price ? "PRICE" : "BASE 100"} / ${getBenchmarkDef()?.displayUnit || state.metadataMap.get(state.benchmark)?.short_name || state.benchmark}`;
 }
 
 function updateSnapshot(display) {
@@ -666,7 +754,7 @@ function renderSummary(displaySeries) {
     row.innerHTML = `<button class="asset-result" type="button" aria-label="Highlight ${escapeHTML(series.meta.short_name)}: ${formatted}">
       <span class="result-name"><span class="legend-swatch" style="background:${seriesColor(series.id)}"></span><strong>${escapeHTML(series.meta.short_name)}</strong></span>
       <strong class="result-value ${money ? "" : valueTone(pct)}">${formatted}</strong>
-      <span class="result-company">${escapeHTML(series.meta.display_name)}</span>
+      <span class="result-company">${escapeHTML(series.meta.display_name)} · ${escapeHTML(series.meta.currency || "IDR")}</span>
       <svg class="sparkline" viewBox="0 0 72 24" aria-hidden="true"><polyline points="${points}" fill="none" stroke="${seriesColor(series.id)}" stroke-width="1.4" /></svg>
       </button><button class="remove-asset" type="button" aria-label="Remove ${escapeHTML(series.meta.short_name)}">×</button>`;
     row.querySelector(".remove-asset").addEventListener("click", () => {
@@ -1181,7 +1269,7 @@ async function init() {
   state.endDate = state.allDates[state.allDates.length - 1];
 
   const count = state.metadata.filter((row) => row.category === "stock").length;
-  document.getElementById("datasetBadge").innerHTML = `<strong>${count}</strong> stocks <span>·</span> <strong>${state.metadata.length - count}</strong> market references <span>·</span> Since ${state.allDates[0].slice(0, 4)}`;
+  document.getElementById("datasetBadge").innerHTML = `<strong>${state.metadata.length}</strong> assets <span>·</span> <strong>${new Set(state.metadata.filter(m => m.category === "stock" || m.category === "index").map(m => m.country)).size}</strong> markets <span>·</span> Since ${state.allDates[0].slice(0, 4)}`;
   document.getElementById("dataCoverage").textContent = `Monthly · Through ${formatMonth(state.allDates.at(-1))}`;
   document.getElementById("sourceCoverage").textContent = `Monthly history from ${formatMonth(state.allDates[0])} through ${formatMonth(state.allDates.at(-1))}, where available. Every comparison uses the dates shared by all selected assets.`;
   window.addEventListener("resize", () => renderChart(state.lastDisplay));

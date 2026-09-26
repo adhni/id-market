@@ -17,10 +17,10 @@ function model() {
   `, context);
   return (code) => vm.runInContext(code, context);
 }
-test('expanded bundle includes 50 stocks, indexes, currencies and commodities', () => {
+test('expanded bundle includes 62 stocks, global indexes, crypto and currencies', () => {
   const run = model();
-  assert.equal(run('state.metadata.length'), 61);
-  assert.equal(run('state.metadata.filter(m => m.category === "stock").length'), 50);
+  assert.equal(run('state.metadata.length'), 88);
+  assert.equal(run('state.metadata.filter(m => m.category === "stock").length'), 62);
   assert.equal(run('state.seriesMap.has("IHSG") && state.seriesMap.has("LQ45")'), true);
   assert.equal(run('new Set(state.rawSeries.map(r => r.series_id + r.date)).size'), run('state.rawSeries.length'));
   assert.equal(run('state.rawSeries.every(r => Number.isFinite(Number(r.value)) && Number(r.value) > 0)'), true);
@@ -67,4 +67,33 @@ test('embedded files match CSVs for offline opening', () => {
     const embedded = html.match(new RegExp('<script id="embedded-' + name + '-csv" type="text/plain">([\\s\\S]*?)</script>'))[1];
     assert.equal(embedded.trim(), fs.readFileSync(path.join(root, 'data', name + '.csv'), 'utf8').trim());
   }
+});
+
+// Exercise non-IDR source prices and non-IDR benchmarks, not just the UI options.
+test('international assets convert through their own currencies', () => {
+ const run = model();
+ for (const [id, fx] of [['AAPL','USDIDR'],['DBS','SGDIDR'],['CBA','AUDIDR'],['TOYOTA','JPYIDR'],['TENCENT','HKDIDR'],['NIFTY50','INRIDR'],['BTC','USDIDR']]) {
+  const [actual,expected] = run(`
+   (() => {
+    const result = buildDisplaySeries({ids:['${id}'],mode:'growth',benchmark:'IDR'});
+    const a=result.dates[0], b=result.dates.at(-1);
+    const p=(id,date)=>state.seriesMap.get(id).find(r=>r.date===date).value;
+    return [result.series[0].values.at(-1).value,100*p('${id}',b)*p('${fx}',b)/(p('${id}',a)*p('${fx}',a))];
+   })()
+  `);
+  assert.ok(Math.abs(actual-expected)<1e-8,id);
+ }
+});
+test('a foreign benchmark compares with itself at 100 and USD removes USD FX effects', () => {
+ const run=model();
+ assert.equal(run(`buildDisplaySeries({ids:['CBA'],mode:'relative',benchmark:'CBA'}).series[0].values.every(p=>Math.abs(p.value-100)<1e-8)`),true);
+ const [actual,expected]=run(`(() => { const d=buildDisplaySeries({ids:['NVDA'],benchmark:'USDIDR'}); const rows=state.seriesMap.get('NVDA').filter(r=>d.dates.includes(r.date)); return [d.series[0].values.at(-1).value,100*rows.at(-1).value/rows[0].value]; })()`);
+ assert.ok(Math.abs(actual-expected)<1e-8);
+});
+test('world overview calculations do not change the active comparison', () => {
+ const run=model();
+ const before=run('JSON.stringify([...state.selectedSeries])');
+ assert.equal(run(`WORLD_MARKETS.every(id=>buildDisplaySeries({ids:[id],mode:'growth'}).series.length===1)`),true);
+ assert.equal(run('JSON.stringify([...state.selectedSeries])'),before);
+ assert.equal(run(`state.metadata.every(meta=>currencyRefs(meta).every(id=>state.seriesMap.has(id)))`),true);
 });
