@@ -1,0 +1,442 @@
+[
+  {
+    "id": "ADRO",
+    "symbol": "ADRO.JK",
+    "name": "Adaro Energy Indonesia",
+    "category": "stock",
+    "sector": "Energy / Coal",
+    "unit": "IDR"
+  },
+  {
+    "id": "ANTM",
+    "symbol": "ANTM.JK",
+    "name": "Aneka Tambang",
+    "category": "stock",
+    "sector": "Metals & Mining",
+    "unit": "IDR"
+  },
+  {
+    "id": "ASII",
+    "symbol": "ASII.JK",
+    "name": "Astra International",
+    "category": "stock",
+    "sector": "Conglomerate / Industrials",
+    "unit": "IDR"
+  },
+  {
+    "id": "BBCA",
+    "symbol": "BBCA.JK",
+    "name": "Bank Central Asia",
+    "category": "stock",
+    "sector": "Banks",
+    "unit": "IDR"
+  },
+  {
+    "id": "BBNI",
+    "symbol": "BBNI.JK",
+    "name": "Bank Negara Indonesia",
+    "category": "stock",
+    "sector": "Banks",
+    "unit": "IDR"
+  },
+  {
+    "id": "BBRI",
+    "symbol": "BBRI.JK",
+    "name": "Bank Rakyat Indonesia",
+    "category": "stock",
+    "sector": "Banks",
+    "unit": "IDR"
+  },
+  {
+    "id": "BMRI",
+    "symbol": "BMRI.JK",
+    "name": "Bank Mandiri",
+    "category": "stock",
+    "sector": "Banks",
+    "unit": "IDR"
+  },
+  {
+    "id": "GOTO",
+    "symbol": "GOTO.JK",
+    "name": "GoTo Gojek Tokopedia",
+    "category": "stock",
+    "sector": "Technology / Internet",
+    "unit": "IDR"
+  },
+  {
+    "id": "ICBP",
+    "symbol": "ICBP.JK",
+    "name": "Indofood CBP",
+    "category": "stock",
+    "sector": "Consumer Staples",
+    "unit": "IDR"
+  },
+  {
+    "id": "INCO",
+    "symbol": "INCO.JK",
+    "name": "Vale Indonesia",
+    "category": "stock",
+    "sector": "Metals & Mining",
+    "unit": "IDR"
+  },
+  {
+    "id": "ISAT",
+    "symbol": "ISAT.JK",
+    "name": "Indosat Ooredoo Hutchison",
+    "category": "stock",
+    "sector": "Telecom",
+    "unit": "IDR"
+  },
+  {
+    "id": "ITMG",
+    "symbol": "ITMG.JK",
+    "name": "Indo Tambangraya Megah",
+    "category": "stock",
+    "sector": "Energy / Coal",
+    "unit": "IDR"
+  },
+  {
+    "id": "MDKA",
+    "symbol": "MDKA.JK",
+    "name": "Merdeka Copper Gold",
+    "category": "stock",
+    "sector": "Metals & Mining",
+    "unit": "IDR"
+  },
+  {
+    "id": "PTBA",
+    "symbol": "PTBA.JK",
+    "name": "Bukit Asam",
+    "category": "stock",
+    "sector": "Energy / Coal",
+    "unit": "IDR"
+  },
+  {
+    "id": "TLKM",
+    "symbol": "TLKM.JK",
+    "name": "Telkom Indonesia",
+    "category": "stock",
+    "sector": "Telecom",
+    "unit": "IDR"
+  },
+  {
+    "id": "UNVR",
+    "symbol": "UNVR.JK",
+    "name": "Unilever Indonesia",
+    "category": "stock",
+    "sector": "Consumer Staples",
+    "unit": "IDR"
+  },
+  {
+    "id": "AMRT",
+    "symbol": "AMRT.JK",
+    "name": "Sumber Alfaria Trijaya",
+    "category": "stock",
+    "sector": "Retail",
+    "unit": "IDR"
+  },
+  {
+    "id": "ARTO",
+    "symbol": "ARTO.JK",
+    "name": "Bank Jago",
+    "category": "stock",
+    "sector": "Banks",
+    "unit": "IDR"
+  },
+  {
+    "id": "BBTN",
+    "symbol": "BBTN.JK",
+    "name": "Bank Tabungan Negara",
+    "category": "stock",
+    "sector": "Banks",
+    "unit": "IDR"
+  },
+  {
+    "id": "BRIS",
+    "symbol": "BRIS.JK",
+    "name": "Bank Syariah Indonesia",
+    "category": "stock",
+    "sector": "Banks",
+    "unit": "IDR"
+  },
+  {
+    "id": "BTPS",
+    "symbol": "BTPS.JK",
+    "name": "BTPN Syariah",
+    "category": "stock",
+    "sector": "Banks",
+    "unit": "IDR"
+  },
+  {
+    "id": "BNGA",
+    "symbol": "BNGA.JK",
+    "name": "Bank CIMB Niaga",
+    "category": "stock",
+    "sector": "Banks",
+    "unit": "IDR"
+  },
+  {
+    "id": "BNLI",
+    "symbol": "BNLI.JK",
+    "name": "Bank Permata",
+    "category": "stock",
+    "sector": "Banks",
+    "unit": "IDR"
+  },
+  {
+    "id": "BRPT",
+    "symbol": "BRPT.JK",
+    "name": "Barito Pacific",
+    "category": "stock",
+    "sector": "Industrials",
+    "unit": "IDR"
+  },
+  {
+    "id": "CPIN",
+    "symbol": "CPIN.JK",
+    "name": "Charoen Pokphand Indonesia",
+    "category": "stock",
+    "sector": "Food & Agriculture",
+    "unit": "IDR"
+  },
+  {
+    "id": "EMTK",
+    "symbol": "EMTK.JK",
+    "name": "Elang Mahkota Teknologi",
+    "category": "stock",
+    "sector": "Media & Technology",
+    "unit": "IDR"
+  },
+  {
+    "id": "ERAA",
+    "symbol": "ERAA.JK",
+    "name": "Erajaya Swasembada",
+    "category": "stock",
+    "sector": "Retail",
+    "unit": "IDR"
+  },
+  {
+    "id": "EXCL",
+    "symbol": "EXCL.JK",
+    "name": "XL Axiata",
+    "category": "stock",
+    "sector": "Telecom",
+    "unit": "IDR"
+  },
+  {
+    "id": "INDF",
+    "symbol": "INDF.JK",
+    "name": "Indofood Sukses Makmur",
+    "category": "stock",
+    "sector": "Consumer Staples",
+    "unit": "IDR"
+  },
+  {
+    "id": "INTP",
+    "symbol": "INTP.JK",
+    "name": "Indocement Tunggal Prakarsa",
+    "category": "stock",
+    "sector": "Construction Materials",
+    "unit": "IDR"
+  },
+  {
+    "id": "JPFA",
+    "symbol": "JPFA.JK",
+    "name": "Japfa Comfeed Indonesia",
+    "category": "stock",
+    "sector": "Food & Agriculture",
+    "unit": "IDR"
+  },
+  {
+    "id": "KLBF",
+    "symbol": "KLBF.JK",
+    "name": "Kalbe Farma",
+    "category": "stock",
+    "sector": "Healthcare",
+    "unit": "IDR"
+  },
+  {
+    "id": "MAPI",
+    "symbol": "MAPI.JK",
+    "name": "Mitra Adiperkasa",
+    "category": "stock",
+    "sector": "Retail",
+    "unit": "IDR"
+  },
+  {
+    "id": "MEDC",
+    "symbol": "MEDC.JK",
+    "name": "Medco Energi Internasional",
+    "category": "stock",
+    "sector": "Energy",
+    "unit": "IDR"
+  },
+  {
+    "id": "PGAS",
+    "symbol": "PGAS.JK",
+    "name": "Perusahaan Gas Negara",
+    "category": "stock",
+    "sector": "Energy",
+    "unit": "IDR"
+  },
+  {
+    "id": "SMGR",
+    "symbol": "SMGR.JK",
+    "name": "Semen Indonesia",
+    "category": "stock",
+    "sector": "Construction Materials",
+    "unit": "IDR"
+  },
+  {
+    "id": "UNTR",
+    "symbol": "UNTR.JK",
+    "name": "United Tractors",
+    "category": "stock",
+    "sector": "Industrials",
+    "unit": "IDR"
+  },
+  {
+    "id": "TOWR",
+    "symbol": "TOWR.JK",
+    "name": "Sarana Menara Nusantara",
+    "category": "stock",
+    "sector": "Infrastructure",
+    "unit": "IDR"
+  },
+  {
+    "id": "TBIG",
+    "symbol": "TBIG.JK",
+    "name": "Tower Bersama Infrastructure",
+    "category": "stock",
+    "sector": "Infrastructure",
+    "unit": "IDR"
+  },
+  {
+    "id": "SIDO",
+    "symbol": "SIDO.JK",
+    "name": "Sido Muncul",
+    "category": "stock",
+    "sector": "Healthcare",
+    "unit": "IDR"
+  },
+  {
+    "id": "MNCN",
+    "symbol": "MNCN.JK",
+    "name": "Media Nusantara Citra",
+    "category": "stock",
+    "sector": "Media",
+    "unit": "IDR"
+  },
+  {
+    "id": "BSDE",
+    "symbol": "BSDE.JK",
+    "name": "Bumi Serpong Damai",
+    "category": "stock",
+    "sector": "Property",
+    "unit": "IDR"
+  },
+  {
+    "id": "CTRA",
+    "symbol": "CTRA.JK",
+    "name": "Ciputra Development",
+    "category": "stock",
+    "sector": "Property",
+    "unit": "IDR"
+  },
+  {
+    "id": "PWON",
+    "symbol": "PWON.JK",
+    "name": "Pakuwon Jati",
+    "category": "stock",
+    "sector": "Property",
+    "unit": "IDR"
+  },
+  {
+    "id": "AKRA",
+    "symbol": "AKRA.JK",
+    "name": "AKR Corporindo",
+    "category": "stock",
+    "sector": "Logistics & Energy",
+    "unit": "IDR"
+  },
+  {
+    "id": "ESSA",
+    "symbol": "ESSA.JK",
+    "name": "ESSA Industries Indonesia",
+    "category": "stock",
+    "sector": "Energy & Chemicals",
+    "unit": "IDR"
+  },
+  {
+    "id": "PTPP",
+    "symbol": "PTPP.JK",
+    "name": "PP Persero",
+    "category": "stock",
+    "sector": "Construction",
+    "unit": "IDR"
+  },
+  {
+    "id": "SMRA",
+    "symbol": "SMRA.JK",
+    "name": "Summarecon Agung",
+    "category": "stock",
+    "sector": "Property",
+    "unit": "IDR"
+  },
+  {
+    "id": "HEAL",
+    "symbol": "HEAL.JK",
+    "name": "Medikaloka Hermina",
+    "category": "stock",
+    "sector": "Healthcare",
+    "unit": "IDR"
+  },
+  {
+    "id": "MIKA",
+    "symbol": "MIKA.JK",
+    "name": "Mitra Keluarga Karyasehat",
+    "category": "stock",
+    "sector": "Healthcare",
+    "unit": "IDR"
+  },
+  {
+    "id": "IHSG",
+    "symbol": "^JKSE",
+    "name": "Indonesia Composite (IHSG)",
+    "category": "index",
+    "sector": "Market index",
+    "unit": "index points"
+  },
+  {
+    "id": "LQ45",
+    "symbol": "^JKLQ45",
+    "name": "LQ45",
+    "category": "index",
+    "sector": "Market index",
+    "unit": "index points"
+  },
+  {
+    "id": "USDIDR",
+    "symbol": "IDR=X",
+    "name": "US Dollar",
+    "category": "fx",
+    "sector": "Currency",
+    "unit": "IDR per USD"
+  },
+  {
+    "id": "EURIDR",
+    "symbol": "EURIDR=X",
+    "name": "Euro",
+    "category": "fx",
+    "sector": "Currency",
+    "unit": "IDR per EUR"
+  },
+  {
+    "id": "JPYIDR",
+    "symbol": "JPYIDR=X",
+    "name": "Japanese Yen",
+    "category": "fx",
+    "sector": "Currency",
+    "unit": "IDR per JPY"
+  }
+]

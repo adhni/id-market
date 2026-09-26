@@ -1,16 +1,16 @@
 const COLORS = ["#0f766e", "#f97316", "#2563eb", "#dc2626", "#7c3aed", "#059669", "#d97706", "#0284c7", "#be123c", "#4f46e5"];
-const DEFAULT_SERIES = ["BBCA", "BBRI", "BMRI"];
+const DEFAULT_SERIES = ["IHSG", "BBCA", "GOLD", "USDIDR"];
 const PRICE_GROWTH_BENCHMARK_IDS = ["IDR", "USDIDR", "EURIDR", "JPYIDR", "GOLD", "OIL_WTI", "COAL", "NICKEL", "PALM_OIL", "RICE"];
-const RELATIVE_BENCHMARK_IDS = ["IDR", "USDIDR", "GOLD", "OIL_WTI"];
+const RELATIVE_BENCHMARK_IDS = ["IDR", "USDIDR", "GOLD", "OIL_WTI", "IHSG", "LQ45"];
 const CHART_DIMS = { width: 1100, height: 520, pad: { top: 28, right: 28, bottom: 56, left: 78 } };
 const TROY_OUNCE_IN_GRAMS = 31.1034768;
 const BARREL_IN_LITERS = 158.987294928;
 const METRIC_TON_IN_KILOGRAMS = 1000;
 const SERIES_GROUPS = [
   { key: "stock", title: "Stocks", caption: "Indonesian listed names grouped by sector." },
-  { key: "fx", title: "FX", caption: "Currency reference series." },
+  { key: "fx", title: "Currencies", caption: "Currency reference series." },
   { key: "commodity", title: "Commodities", caption: "Global benchmark commodities in the bundled data." },
-  { key: "index", title: "Other", caption: "Other series in the dataset." },
+  { key: "index", title: "Market indexes", caption: "Other series in the dataset." },
 ];
 
 const state = {
@@ -20,7 +20,7 @@ const state = {
   metadataMap: new Map(),
   selectedSeries: new Set(DEFAULT_SERIES),
   mode: "growth",
-  benchmark: "USDIDR",
+  benchmark: "IDR",
   startDate: null,
   endDate: null,
   allDates: [],
@@ -197,6 +197,7 @@ function setupControls() {
   populateDateSelects();
   renderSelectedChips();
   setupTooltipButtons();
+  document.getElementById("clearComparison").addEventListener("click", () => applyPreset("clear"));
   setupModeButtons();
 
   document.getElementById("modeSelect").addEventListener("change", (event) => {
@@ -236,8 +237,8 @@ function setupControls() {
 
   document.getElementById("resetSelections").addEventListener("click", () => {
     state.selectedSeries = new Set(DEFAULT_SERIES.filter((id) => state.metadataMap.has(id)));
-    state.mode = "price";
-    state.benchmark = "USDIDR";
+    state.mode = "growth";
+    state.benchmark = "IDR";
     state.startDate = state.allDates[0];
     state.endDate = state.allDates[state.allDates.length - 1];
     state.hoverIndex = null;
@@ -246,6 +247,8 @@ function setupControls() {
     document.getElementById("modeSelect").value = state.mode;
     document.getElementById("benchmarkSelect").value = state.benchmark;
     document.getElementById("seriesSearch").value = "";
+    document.getElementById("stockToggleSearch").value = "";
+    document.getElementById("investmentView").checked = true;
     populateDateSelects();
     renderSeriesList();
     renderSelectedChips();
@@ -285,7 +288,7 @@ function setupTooltipButtons() {
 function renderSeriesList() {
   const host = document.getElementById("seriesList");
   host.innerHTML = "";
-  const rows = [...state.metadata].filter((row) => row.category === "stock").sort((a, b) => sortMeta(a, b));
+  const rows = [...state.metadata].sort((a, b) => sortMeta(a, b));
   const grouped = new Map(SERIES_GROUPS.map((group) => [group.key, []]));
 
   rows.forEach((row) => {
@@ -359,7 +362,7 @@ function renderSeriesList() {
   });
 
   if (!host.children.length) {
-    host.innerHTML = `<div class="selected-empty">No stock matches. Try a ticker like BBCA, a sector like banks, or clear the search.</div>`;
+    host.innerHTML = `<div class="selected-empty">No matches. Try BBCA, gold, a sector like banks, or clear the search.</div>`;
   }
 }
 
@@ -371,7 +374,7 @@ function renderSelectedChips() {
     .sort((a, b) => sortMeta(a, b));
 
   if (!selected.length) {
-    host.innerHTML = `<span class="selected-empty">No stocks selected yet. Pick a preset or add stocks from the explorer.</span>`;
+    host.innerHTML = `<span class="selected-empty">Pick a comparison above or add something to explore.</span>`;
     return;
   }
 
@@ -393,11 +396,19 @@ function renderSelectedChips() {
 function applyPreset(preset) {
   const presetMap = {
     default: DEFAULT_SERIES,
-    banks: ["BBCA", "BBRI", "BMRI"],
-    commodities: ["ADRO", "PTBA", "ANTM", "MDKA"],
+    banks: ["BBCA", "BBRI", "BMRI", "BBNI"],
+    gold: ["IHSG", "BBCA", "GOLD"],
+    nickel: ["NICKEL", "ANTM", "INCO", "MDKA"],
+    market: ["IHSG", "LQ45", "ASII"],
+    commodities: ["COAL", "ADRO", "PTBA", "ITMG"],
     clear: [],
   };
   state.selectedSeries = new Set((presetMap[preset] || []).filter((id) => state.metadataMap.has(id)));
+  if (preset !== "clear") {
+    state.mode = "growth";
+    state.benchmark = "IDR";
+  }
+  state.hoverIndex = null;
   state.openGroups = new Set();
   renderSeriesList();
   renderSelectedChips();
@@ -437,16 +448,15 @@ function getBenchmarkLabel(id = state.benchmark) {
   const benchmarkDef = getBenchmarkDef(id);
   if (benchmarkDef) return benchmarkDef.label;
   const stockMeta = state.metadataMap.get(id);
-  if (stockMeta?.category === "stock") return `${stockMeta.short_name} stock`;
+  if (stockMeta) return stockMeta.short_name;
   return stockMeta?.short_name || id;
 }
 
 function isStockBenchmark(id = state.benchmark) {
-  return state.metadataMap.get(id)?.category === "stock";
+  return ["stock", "index"].includes(state.metadataMap.get(id)?.category);
 }
 
 function getPriceReferenceSeriesIds() {
-  if (state.mode !== "price" && state.mode !== "growth") return [];
   if (isStockBenchmark()) return [state.benchmark];
   return getBenchmarkDef()?.refs || ["USDIDR"];
 }
@@ -485,18 +495,18 @@ function renderBenchmarkOptions() {
   select.appendChild(macroGroup);
 
   const stockGroup = document.createElement("optgroup");
-  stockGroup.label = "Stocks";
+  stockGroup.label = "Individual stocks";
   const stockRows = [...state.metadata]
     .filter((row) => row.category === "stock")
     .sort((a, b) => a.short_name.localeCompare(b.short_name));
   stockRows.forEach((row) => {
-    const label = `${row.short_name} (${row.series_id})`;
+    const label = `${row.short_name} · ${row.display_name}`;
     stockGroup.appendChild(new Option(label, row.series_id, false, row.series_id === state.benchmark));
   });
   select.appendChild(stockGroup);
 
   if (![...select.options].some((option) => option.value === state.benchmark)) {
-    state.benchmark = "USDIDR";
+    state.benchmark = "IDR";
   }
 }
 
@@ -511,10 +521,9 @@ function renderStockToggleDropdown() {
 
   const searchTerm = searchInput?.value?.trim().toLowerCase() || "";
   const stocks = [...state.metadata]
-    .filter((row) => row.category === "stock")
     .filter((row) => {
       if (!searchTerm) return true;
-      const haystack = `${row.series_id} ${row.display_name} ${row.short_name}`.toLowerCase();
+      const haystack = `${row.series_id} ${row.display_name} ${row.short_name} ${row.sector} ${row.category}`.toLowerCase();
       return haystack.includes(searchTerm);
     })
     .sort((a, b) => a.display_name.localeCompare(b.display_name));
@@ -522,7 +531,7 @@ function renderStockToggleDropdown() {
   host.innerHTML = "";
 
   if (!stocks.length) {
-    host.innerHTML = `<div class="selected-empty">No stocks match this search.</div>`;
+    host.innerHTML = `<div class="selected-empty">No matches. Try a company, gold, currency, or sector.</div>`;
     return;
   }
 
@@ -542,7 +551,7 @@ function renderStockToggleDropdown() {
     label.querySelector("input").addEventListener("change", (event) => {
       if (event.target.checked) {
         state.selectedSeries.add(row.series_id);
-        state.openGroups.add("stock");
+        state.openGroups.add(row.category);
       } else {
         state.selectedSeries.delete(row.series_id);
       }
@@ -574,8 +583,8 @@ function applyTimeframe(range) {
     state.startDate = state.allDates[0];
   } else {
     const years = Number(range.replace("Y", ""));
-    const end = new Date(`${state.endDate}T00:00:00`);
-    const target = new Date(Date.UTC(end.getUTCFullYear() - years, end.getUTCMonth(), 1));
+    const [endYear, endMonth] = state.endDate.split("-").map(Number);
+    const target = new Date(Date.UTC(endYear - years, endMonth - 1, 1));
     const targetStr = `${target.getUTCFullYear()}-${String(target.getUTCMonth() + 1).padStart(2, "0")}-01`;
     state.startDate = state.allDates.find((date) => date >= targetStr) || state.allDates[0];
   }
@@ -689,83 +698,53 @@ function alignSeriesToDates(seriesId, dates) {
   return dates.map((date) => ({ date, ...map.get(date) }));
 }
 
-function transformSeries(alignedRows, benchmarkRows, referenceMaps) {
-  if (!alignedRows.length) return [];
-  if (state.mode === "price") {
-    return alignedRows.map((row) => ({ date: row.date, value: convertPriceValue(row.value, row.date, referenceMaps) }));
+// All comparisons share an IDR basis before changing the measuring reference.
+// Index levels are normalized proxies, not purchasable shares.
+function valueInIDR(value, meta, date, referenceMaps) {
+  if (meta.category === "commodity") {
+    return value * referenceMaps.get("USDIDR")?.get(date);
   }
-  if (state.mode === "growth") {
-    const converted = alignedRows.map((row) => ({
-      date: row.date,
-      value: convertPriceValue(row.value, row.date, referenceMaps),
-    }));
-    if (converted.some((row) => !Number.isFinite(row.value))) return [];
-    const first = converted[0]?.value;
-    if (!Number.isFinite(first) || first === 0) return [];
-    return converted.map((row) => ({ date: row.date, value: (row.value / first) * 100 }));
-  }
-  const benchMap = new Map(benchmarkRows.map((row) => [row.date, row.value]));
-  const firstBench = benchMap.get(alignedRows[0].date);
-  if (!Number.isFinite(firstBench) || firstBench === 0) return [];
-  const firstRatio = alignedRows[0].value / firstBench;
-  return alignedRows.map((row) => {
-    const bench = benchMap.get(row.date);
-    if (!Number.isFinite(bench) || bench === 0 || !Number.isFinite(firstRatio) || firstRatio === 0) {
-      return { date: row.date, value: NaN };
-    }
-    return {
-      date: row.date,
-      value: ((row.value / bench) / firstRatio) * 100,
-    };
-  });
+  return value;
+}
+
+function transformSeries(alignedRows, meta, referenceMaps) {
+  const converted = alignedRows.map((row) => ({
+    date: row.date,
+    value: convertPriceValue(valueInIDR(row.value, meta, row.date, referenceMaps), row.date, referenceMaps),
+  }));
+  if (converted.some((row) => !Number.isFinite(row.value))) return [];
+  if (state.mode === "price") return converted;
+  const first = converted[0]?.value;
+  if (!Number.isFinite(first) || first <= 0) return [];
+  return converted.map((row) => ({ date: row.date, value: row.value / first * 100 }));
 }
 
 function buildDisplaySeries() {
-  const selected = [...state.selectedSeries].filter((id) => {
-    if (!state.seriesMap.has(id)) return false;
-    return state.metadataMap.get(id)?.category === "stock";
-  });
+  const selected = [...state.selectedSeries].filter((id) => state.seriesMap.has(id));
   if (!selected.length) return { series: [], dates: [], reason: "no-selection", units: [] };
-
-  const priceReferenceIds = getPriceReferenceSeriesIds();
-  const relativeIds = state.mode === "relative"
-    ? (state.benchmark === "IDR" ? [...selected] : [...selected, state.benchmark])
-    : [];
-  const comparisonIds = state.mode === "relative" ? relativeIds : [...selected, ...priceReferenceIds];
-  const commonDates = getCommonDates(comparisonIds);
+  // Raw prices with unlike underlying units are not a useful shared axis.
+  const metas = selected.map((id) => state.metadataMap.get(id));
+  if (state.mode === "price" && (metas.some((m) => m.category === "index") || new Set(metas.map((m) => m.currency_or_unit)).size > 1)) {
+    return { series: [], dates: [], reason: "mixed-price", units: [] };
+  }
+  const referenceIds = [...new Set([
+    ...getPriceReferenceSeriesIds(),
+    ...(metas.some((m) => m.category === "commodity") ? ["USDIDR"] : []),
+  ])];
+  const commonDates = getCommonDates([...selected, ...referenceIds]);
   if (!commonDates.length) return { series: [], dates: [], reason: "no-common-dates", units: [] };
-
-  const benchmarkRows = state.mode === "relative"
-    ? (state.benchmark === "IDR"
-      ? commonDates.map((date) => ({ date, value: 1 }))
-      : alignSeriesToDates(state.benchmark, commonDates))
-    : [];
-  const referenceMaps = new Map(
-    priceReferenceIds.map((id) => [
-      id,
-      new Map(alignSeriesToDates(id, commonDates).map((row) => [row.date, row.value])),
-    ])
-  );
-  const series = selected.map((seriesId) => {
-    const aligned = alignSeriesToDates(seriesId, commonDates);
-    const values = transformSeries(aligned, benchmarkRows, referenceMaps);
-    const meta = state.metadataMap.get(seriesId);
+  const referenceMaps = new Map(referenceIds.map((id) => [id,
+    new Map(alignSeriesToDates(id, commonDates).map((row) => [row.date, row.value])),
+  ]));
+  const series = selected.map((id) => {
+    const meta = state.metadataMap.get(id);
     return {
-      id: seriesId,
-      meta,
-      rawUnit: state.mode === "price" ? getPriceDisplayUnit() : (meta?.currency_or_unit || aligned[0]?.unit || ""),
-      values,
+      id, meta,
+      rawUnit: state.mode === "price" ? getPriceDisplayUnit() : "index",
+      values: transformSeries(alignSeriesToDates(id, commonDates), meta, referenceMaps),
     };
   }).filter((entry) => entry.values.length);
-
-  if (!series.length) return { series: [], dates: [], reason: "no-values", units: [] };
-
-  return {
-    series,
-    dates: commonDates,
-    reason: null,
-    units: [...new Set(series.map((entry) => entry.rawUnit).filter(Boolean))],
-  };
+  return { series, dates: commonDates, units: [...new Set(series.map((s) => s.rawUnit))], reason: series.length ? null : "no-values" };
 }
 
 function updateControlVisibility() {
@@ -796,8 +775,8 @@ function updateControlVisibility() {
 }
 
 function render() {
-  updateCopy();
   updateControlVisibility();
+  updateCopy();
   renderStockToggleDropdown();
   const display = buildDisplaySeries();
   state.lastDisplay = display;
@@ -809,61 +788,36 @@ function render() {
   renderLegend(display.series);
   renderChart(display);
   renderSummary(display.series);
+  renderInvestment(display);
   renderDiagnostics(display);
   updateSnapshot(display);
   syncDateRangeSlider();
-  document.getElementById("coverageText").textContent = `${state.startDate?.slice(0, 7) || "-"} to ${state.endDate?.slice(0, 7) || "-"}`;
+  document.getElementById("coverageText").textContent = display.dates.length ? `${formatMonth(display.dates[0])} to ${formatMonth(display.dates.at(-1))}` : "No shared dates";
 }
 
 function updateCopy() {
-  const yAxisLabel = document.getElementById("yAxisLabel");
-  const chartTitle = document.getElementById("chartTitle");
-  const chartSubtitle = document.getElementById("chartSubtitle");
-  const yAxisExplain = document.getElementById("yAxisExplain");
-  const modeHelp = document.getElementById("modeHelp");
-  const footnote = document.getElementById("chartFootnote");
+  const label = getBenchmarkLabel();
+  const price = state.mode === "price";
+  const relative = state.mode === "relative";
+  document.getElementById("chartTitle").textContent = price ? "Price over time" : relative ? `Compared with ${label}` : "How did they compare?";
+  document.getElementById("chartSubtitle").textContent = price
+    ? `Monthly prices measured in ${label}.`
+    : `Everything starts at 100. A finish at 120 means a 20% increase in ${label} terms.`;
+  document.getElementById("yAxisExplain").textContent = relative ? "Above 100 = ahead of the reference. Below 100 = behind it." : "";
+  document.getElementById("yAxisLabel").textContent = price ? getPriceDisplayUnit() : "Start = 100";
+  document.getElementById("chartFootnote").textContent = "Monthly exploration · price movements, excluding cash dividends. Commodity monthly averages are compared with month-end financial prices. Tap or hover to explore.";
+}
 
-  if (state.mode === "growth") {
-    const benchmarkLabel = getBenchmarkLabel();
-    yAxisLabel.textContent = "Index (Start = 100)";
-    chartTitle.textContent = "Growth since start";
-    chartSubtitle.textContent = `Each selected series is first measured in ${benchmarkLabel}, then rebased to 100 at the first visible month.`;
-    yAxisExplain.textContent = `Y-axis = growth index in ${benchmarkLabel} terms. The first visible month is 100 for every selected stock.`;
-    if (modeHelp) modeHelp.textContent = "Best default for quick comparison. Use Measure in to switch growth basis across currencies, commodities, or stock terms.";
-    footnote.textContent = `Growth mode rebases each series to 100 after converting to ${benchmarkLabel}.`;
-  } else if (state.mode === "price") {
-    const benchmarkLabel = getBenchmarkLabel();
-    const displayUnit = getPriceDisplayUnit();
-    yAxisLabel.textContent = `Price (${displayUnit})`;
-    chartTitle.textContent = "Price";
-    if (isStockBenchmark()) {
-      const benchmarkShort = state.metadataMap.get(state.benchmark)?.short_name || state.benchmark;
-      chartSubtitle.textContent = `Monthly stock prices as a ratio to ${benchmarkShort} stock price.`;
-      yAxisExplain.textContent = `Y-axis = how many shares of ${benchmarkShort} each selected stock equals.`;
-      if (modeHelp) modeHelp.textContent = "Use Measure in to compare in macro units (USD, oil, gold) or as stock-vs-stock ratios.";
-      footnote.textContent = `Price mode uses raw ratio: selected stock price divided by ${benchmarkShort} stock price for each month.`;
-      return;
-    }
-    if (state.benchmark === "IDR") {
-      chartSubtitle.textContent = "Raw monthly stock prices in Rupiah (IDR).";
-      yAxisExplain.textContent = "Y-axis = stock price in Rupiah (IDR).";
-      if (modeHelp) modeHelp.textContent = "Use Measure in to switch from IDR to currencies, commodities, or stock-vs-stock ratios.";
-      footnote.textContent = "Price mode shows native monthly stock prices in IDR when Rupiah is selected.";
-      return;
-    }
-    chartSubtitle.textContent = `Monthly stock prices converted to ${benchmarkLabel}.`;
-    yAxisExplain.textContent = `Y-axis = stock value in ${benchmarkLabel}.`;
-    if (modeHelp) modeHelp.textContent = "Use Measure in to view stock values in different currencies, commodities, or stock terms.";
-    footnote.textContent = `Price mode converts each monthly stock price using the selected reference (${benchmarkLabel}).`;
-  } else {
-    const benchmarkName = getBenchmarkLabel();
-    yAxisLabel.textContent = "Relative performance";
-    chartTitle.textContent = `Performance vs ${benchmarkName}`;
-    chartSubtitle.textContent = "Lines above 100 outperformed the benchmark from the chosen start month. Lines below 100 lagged it.";
-    yAxisExplain.textContent = `Y-axis = performance index versus ${benchmarkName}. The first visible month is rebased to 100.`;
-    if (modeHelp) modeHelp.textContent = "Each selected series is divided by the chosen benchmark and then rebased to 100.";
-    footnote.textContent = `Relative mode compares each selected monthly series against ${benchmarkName}.`;
-  }
+function renderInvestment(display) {
+  const host = document.getElementById("investmentResults");
+  const enabled = document.getElementById("investmentView").checked;
+  const available = state.mode === "growth" && state.benchmark === "IDR" && display.series.length;
+  document.getElementById("investmentBlock").hidden = !available;
+  host.hidden = !enabled;
+  host.innerHTML = available ? display.series.map((series, index) => {
+    const end = 1000000 * series.values.at(-1).value / series.values[0].value;
+    return `<article class="investment-card"><span><i class="legend-swatch" style="background:${COLORS[index % COLORS.length]}"></i>${series.meta.short_name}</span><strong>Rp${Math.round(end).toLocaleString("id-ID")}</strong></article>`;
+  }).join("") : "";
 }
 
 function updateSnapshot(display) {
@@ -873,6 +827,9 @@ function updateSnapshot(display) {
   const chartReadingHint = document.getElementById("chartReadingHint");
   const benchmarkName = getBenchmarkLabel();
   const months = display.dates.length;
+  const note = document.getElementById("sharedWindowNote");
+  note.textContent = months ? `Comparing ${formatMonth(display.dates[0])} – ${formatMonth(display.dates.at(-1))} · ${months} shared monthly observations${display.dates[0] !== state.startDate || display.dates.at(-1) !== state.endDate ? ". Adjusted to the history available for every selected line." : ""}` : "";
+  document.getElementById("selectionAdvice").textContent = state.selectedSeries.size > 5 ? "Lots to explore! Try 2–5 lines for an easier comparison." : "Tip: start with 2–5 lines.";
 
   selectedCount.textContent = `${display.series.length} ${display.series.length === 1 ? "line" : "lines"}`;
   activeBenchmark.textContent = (state.mode === "relative" || state.mode === "price" || state.mode === "growth") ? benchmarkName : "Off in this mode";
@@ -1208,7 +1165,12 @@ function renderChart(display) {
   svg.innerHTML = "";
   hideTooltip();
 
+  CHART_DIMS.width = stage.clientWidth < 640 ? Math.max(360, stage.clientWidth) : 1100;
+  CHART_DIMS.height = stage.clientWidth < 640 ? 320 : 520;
+  CHART_DIMS.pad.left = stage.clientWidth < 640 ? 54 : 78;
   const { width, height, pad } = CHART_DIMS;
+  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+  svg.style.aspectRatio = `${width} / ${height}`;
   const { series: displaySeries, dates } = display;
   const reason = getEmptyReason(display.reason);
 
@@ -1256,7 +1218,7 @@ function renderChart(display) {
     `);
   }
 
-  const step = Math.max(1, Math.floor(dates.length / 6));
+  const step = Math.max(1, Math.floor(dates.length / (width < 640 ? 3 : 6)));
   const labelIndexes = dates
     .map((_, index) => index)
     .filter((index) => index % step === 0 || index === dates.length - 1);
@@ -1299,13 +1261,13 @@ function renderChart(display) {
   const overlay = document.getElementById("chartOverlay");
   overlay.addEventListener("mousemove", (event) => onChartHover(event, chartWidth, x));
   overlay.addEventListener("mouseleave", () => {
-    state.hoverIndex = dates.length - 1;
+    state.hoverIndex = null;
     renderChart(state.lastDisplay);
   });
   overlay.addEventListener("touchstart", (event) => onChartHover(event.touches[0], chartWidth, x), { passive: true });
   overlay.addEventListener("touchmove", (event) => onChartHover(event.touches[0], chartWidth, x), { passive: true });
 
-  renderTooltip(display, hoverIndex, hoverX);
+  if (state.hoverIndex != null) renderTooltip(display, hoverIndex, hoverX);
 }
 
 function onChartHover(event, chartWidth, xScale) {
@@ -1363,10 +1325,11 @@ function hideTooltip() {
 }
 
 function getEmptyReason(reason) {
+  if (reason === "mixed-price") return { title: "Use Growth for this comparison", body: "Index levels and prices in different units work best when everything starts at 100. Choose Growth above, or select stocks for Price mode." };
   if (reason === "no-selection") {
     return {
       title: "No lines selected",
-      body: "Pick at least one stock series from the explorer to start the comparison.",
+      body: "Choose stocks, indexes, currencies, or commodities above to start exploring.",
     };
   }
   if (reason === "no-common-dates") {
@@ -1432,6 +1395,11 @@ async function init() {
   state.startDate = state.allDates[0];
   state.endDate = state.allDates[state.allDates.length - 1];
 
+  const count = state.metadata.filter((row) => row.category === "stock").length;
+  document.getElementById("datasetBadge").textContent = `${count} stocks · ${state.metadata.length} things to compare`;
+  document.getElementById("dataCoverage").textContent = `Monthly history · ${formatMonth(state.allDates[0])} – ${formatMonth(state.allDates.at(-1))}`;
+  document.getElementById("investmentView").addEventListener("change", () => renderInvestment(state.lastDisplay));
+  window.addEventListener("resize", () => renderChart(state.lastDisplay));
   setupControls();
   populateDateSelects();
   document.getElementById("modeSelect").value = state.mode;
@@ -1439,4 +1407,8 @@ async function init() {
   applyTimeframe("3Y");
 }
 
-init();
+init().catch((error) => {
+  document.getElementById("chartEmptyState").classList.remove("hidden");
+  document.getElementById("chartEmptyState").textContent = "Could not load the monthly data. Refresh the page to try again.";
+  console.error(error);
+});
