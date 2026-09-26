@@ -1275,3 +1275,67 @@ th {
   }
 
 }
+
+/* A small playground: comparisons first, details when you want them. */
+.app-shell { max-width: 1180px; padding: 24px 20px 48px; }
+.panel { padding: 22px; }
+.topbar { padding: 26px; margin-bottom: 18px; }
+.topbar-copy.compact { max-width: none; width: 100%; gap: 12px; }
+h1 { font-size: 46px; }
+.brand-dot { color: var(--accent); }
+.sub.compact { font-size: 16px; max-width: none; }
+.data-coverage { margin: 0; color: var(--muted); font-size: 12px; }
+.main-column { gap: 16px; }
+.preset-intro { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.preset-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 22px; }
+.preset-row button { padding: 11px 15px; font-size: 13px; background: #fffaf3; border: 1px solid var(--line-strong); border-radius: 999px; cursor: pointer; }
+.preset-row button:hover { background: var(--accent-soft); border-color: var(--accent); }
+.control-strip { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.control-card { padding: 0; border: 0; background: none; box-shadow: none; }
+.mode-buttons { display: flex; gap: 6px; }
+.mode-button { padding: 10px 14px; min-height: 42px; }
+.timeframe-buttons button { min-height: 42px; }
+.chart-head { margin-top: 22px; }
+.chart-head-side { min-width: 320px; }
+.chart-controls-row { align-items: end; }
+.chart-stock-control { min-width: 200px; }
+.chart-benchmark-control { min-width: 140px; }
+.stock-toggle-dropdown summary { min-height: 44px; padding: 12px; }
+.stock-toggle-panel { width: 370px; max-width: 85vw; z-index: 30; }
+.stock-toggle-item { min-height: 48px; }
+.stock-toggle-meta { font-size: 12px; }
+.shared-window { font-size: 12px; color: var(--muted); margin: 12px 0; }
+.chart-tooltip { pointer-events: none; }
+.chart-footnote { margin-top: 18px; }
+.investment-toggle { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.investment-results { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 16px 0 20px; }
+.investment-card { padding: 18px; background: var(--accent-soft); border: 1px solid rgba(15,118,110,.15); border-radius: 14px; display: grid; gap: 10px; }
+.investment-card span { display: flex; align-items: center; gap: 7px; font-size: 13px; }
+.investment-card strong { font-size: 21px; }
+.investment-results[hidden], [hidden] { display: none !important; }
+.summary-highlights { margin-top: 14px; }
+.snapshot-bar { display: none; }
+.utility-panel { box-shadow: none; }
+.search-input { font-size: 16px; }
+@media (max-width: 820px) {
+  .app-shell { padding: 12px 10px 30px; }
+  .panel { padding: 16px; }
+  .control-strip { grid-template-columns: 1fr; gap: 16px; }
+  .chart-head-side { min-width: 0; width: 100%; }
+  .chart-controls-row { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
+  .chart-stock-control, .chart-benchmark-control { min-width: 0; }
+  .stock-toggle-panel { left: auto; right: 0; width: min(370px, 82vw); }
+  .investment-results { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .investment-card { padding: 12px; }
+  .investment-card strong { font-size: 18px; }
+  .summary-highlights { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .highlight-card { padding: 10px; }
+  .highlight-card strong { font-size: 17px; }
+}
+@media (max-width: 420px) {
+  .mode-button { padding: 10px; }
+  .preset-row button { padding: 9px 11px; }
+  .chart-tooltip { max-width: 92%; }
+}
+
+.y-axis-explain:empty { display: none; }
