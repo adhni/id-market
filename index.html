@@ -3,263 +3,88 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ID Market — explore Indonesian markets</title>
+  <meta name="theme-color" content="#07110e" />
+  <meta name="description" content="Explore Indonesian stocks, market indexes, gold, and currencies. Sixteen years of monthly history, in perspective." />
+  <title>ID Market — a wider perspective</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+  <a class="skip-link" href="#workspace">Skip to comparison</a>
   <div class="app-shell">
-    <header class="topbar panel">
-      <div class="topbar-copy compact">
-        <div class="title-row">
-          <h1>ID Market<span class="brand-dot">.</span></h1>
-          <div class="pill" id="datasetBadge">Loading the playground…</div>
-        </div>
-        <p class="sub compact">Stocks, gold, currencies. Pick a few and see how they move.</p>
-        <p class="data-coverage" id="dataCoverage">Monthly history</p>
-      </div>
+    <header class="site-header">
+      <a href="./" class="brand" aria-label="ID Market home"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 28 28"><path d="M4 20 10 14 15 17 24 6"/><path d="M17 6h7v7"/></svg></span>ID<span>Market</span></a>
+      <div class="header-right"><a class="quiet-link" href="#dataSources">About the data <span aria-hidden="true">↗</span></a><span class="data-status"><i aria-hidden="true"></i><span id="dataCoverage">Monthly history</span></span></div>
     </header>
 
-    <main class="guided-layout">
-      <section class="main-column">
-        <section class="panel action-board compact-board">
-          <div class="preset-intro"><p class="kicker">Start with a little curiosity</p><button id="resetSelections" class="link-btn" type="button">Reset</button></div>
-          <div class="preset-row" id="presetButtons">
-            <button type="button" data-preset="default">A bit of everything</button>
-            <button type="button" data-preset="banks">Battle of the banks</button>
-            <button type="button" data-preset="gold">Stocks vs gold</button>
-            <button type="button" data-preset="commodities">The coal story</button>
-            <button type="button" data-preset="nickel">The nickel story</button>
-            <button type="button" data-preset="market">Meet the market</button>
-          </div>
-        <div class="control-strip">
-          <article class="control-card mode-card">
-            <div class="card-head compact">
-              <div>
-                <h3>Show me</h3>
-              </div>
-              <button class="info-dot" type="button" aria-label="About Y-axis modes" data-tooltip="Growth rebases to 100, Price shows raw values, Relative compares performance against the selected benchmark.">?</button>
-            </div>
-            <div id="modeButtons" class="mode-buttons" role="group" aria-label="Y-axis view">
-              <button type="button" class="mode-button active" data-mode="growth" aria-pressed="true">
-                <strong>Growth</strong>
-              </button>
-              <button type="button" class="mode-button" data-mode="price" aria-pressed="false">
-                <strong>Price</strong>
-              </button>
-              <button type="button" class="mode-button" data-mode="relative" aria-pressed="false">
-                <strong>Vs benchmark</strong>
-              </button>
-            </div>
-            <select id="modeSelect" class="visually-hidden" aria-hidden="true" tabindex="-1">
-              <option value="growth" selected>Growth since start</option>
-              <option value="price">Price</option>
-              <option value="relative">Performance vs benchmark</option>
-            </select>
-          </article>
-
-          <article class="control-card tune-card">
-            <div class="control-cluster">
-              <label>Timeframe</label>
-              <div class="timeframe-buttons" id="timeframeButtons">
-                <button type="button" data-range="1Y">1Y</button>
-                <button type="button" data-range="3Y" class="active">3Y</button>
-                <button type="button" data-range="5Y">5Y</button>
-                <button type="button" data-range="MAX">Max</button>
-              </div>
-            </div>
-          </article>
-        </div>
-        </section>
-
-        <section class="panel chart-panel">
-          <div class="chart-range-shell" id="chartRangeShell">
-            <div class="label-row">
-              <label for="rangeStart">Date range</label>
-              <span id="rangeWindowLabel" class="month-window-value">Jul 2019 to Feb 2025 (68 mo)</span>
-            </div>
-            <div class="date-range-slider">
-              <div class="slider-track" aria-hidden="true"></div>
-              <div class="slider-fill" id="dateRangeFill" aria-hidden="true"></div>
-              <input id="rangeStart" type="range" min="0" max="100" step="1" value="0" aria-label="Set start month" />
-              <input id="rangeEnd" type="range" min="0" max="100" step="1" value="100" aria-label="Set end month" />
-            </div>
-            <div class="range-months">
-              <span id="rangeStartLabel">Jul 2019</span>
-              <span id="rangeEndLabel">Feb 2025</span>
-            </div>
-          </div>
-
-          <div class="chart-head">
-            <div>
-              <h2 id="chartTitle">How did they compare?</h2>
-              <p id="chartSubtitle" class="muted">Everything starts at 100. A finish at 120 means a 20% increase.</p>
-              <p id="yAxisExplain" class="y-axis-explain"></p>
-            </div>
-            <div class="chart-head-side">
-              <div class="chart-controls-row">
-                <div class="chart-benchmark-control" id="benchmarkBlock">
-                  <label id="benchmarkLabel" for="benchmarkSelect" class="chart-control-label">Measure in</label>
-                  <select id="benchmarkSelect" aria-label="Choose comparison reference">
-                  </select>
-                </div>
-                <div class="chart-stock-control" id="chartStockControl">
-                  <label class="chart-control-label" for="stockToggleSearch">Choose what to compare</label>
-                  <details class="stock-toggle-dropdown" id="stockToggleDropdown">
-                    <summary id="stockToggleSummary">3 selected</summary>
-                    <div class="stock-toggle-panel">
-                      <input id="stockToggleSearch" class="search-input" type="search" placeholder="BBCA, gold, IHSG, banks…" aria-label="Search stocks, indexes, currencies, and commodities" />
-                      <div id="stockToggleList" class="stock-toggle-list"></div>
-                      <p id="selectionAdvice" class="muted">Tip: start with 2–5 lines.</p>
-                      <button type="button" data-preset="clear" id="clearComparison" class="link-btn">Clear selection</button>
-                    </div>
-                  </details>
-                </div>
-              </div>
-              <div id="legend" class="legend"></div>
-            </div>
-          </div>
-          <p id="sharedWindowNote" class="shared-window" aria-live="polite"></p>
-          <div class="chart-stage" id="chartStage">
-            <svg id="chart" viewBox="0 0 1100 520" preserveAspectRatio="xMidYMid meet" aria-label="Line chart"></svg>
-            <div id="chartTooltip" class="chart-tooltip" aria-hidden="true"></div>
-            <div id="chartEmptyState" class="chart-empty hidden"></div>
-          </div>
-          <p class="chart-hint muted" id="chartReadingHint">Growth in Rupiah terms</p>
-          <details class="change-diagnostics" id="changeDiagnostics">
-            <summary class="change-diagnostics-summary">
-              <div>
-                <h3>A closer look</h3>
-                <p class="muted">Monthly changes for the curious.</p>
-              </div>
-            </summary>
-            <div class="diagnostic-grid">
-              <article class="diagnostic-card">
-                <div class="diagnostic-head">
-                  <h4>Monthly change</h4>
-                  <span id="changeUnitLabel">Delta</span>
-                </div>
-                <svg id="changeChart" class="mini-chart" viewBox="0 0 520 220" preserveAspectRatio="none" aria-label="Monthly change chart"></svg>
-              </article>
-              <article class="diagnostic-card">
-                <div class="diagnostic-head">
-                  <h4>Rate of change</h4>
-                  <span>% per month</span>
-                </div>
-                <svg id="rateChart" class="mini-chart" viewBox="0 0 520 220" preserveAspectRatio="none" aria-label="Rate of change chart"></svg>
-              </article>
-            </div>
-            <div id="diagnosticTooltip" class="diagnostic-tooltip" aria-hidden="true"></div>
-            <div class="table-wrap diagnostic-table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Series</th>
-                    <th>Latest</th>
-                    <th>Change</th>
-                    <th>Rate</th>
-                  </tr>
-                </thead>
-                <tbody id="diagnosticBody"></tbody>
-              </table>
-            </div>
-          </details>
-          <p id="chartFootnote" class="chart-footnote muted">All values come from the bundled monthly files. Hover or tap inside the chart to inspect a month.</p>
-        </section>
-
-        <section class="panel summary-panel compact-panel">
-          <details class="section-disclosure" open>
-            <summary class="section-summary">
-              <div>
-                <h2>Quick comparison</h2>
-                <p class="muted">Price change over the shared comparison period.</p>
-              </div>
-            </summary>
-
-            <div id="investmentBlock">
-              <label class="investment-toggle"><input type="checkbox" id="investmentView" checked /> What if Rp1 million followed each line?</label>
-              <p class="muted">An illustration of price movement, excluding dividends and costs. Indexes and commodities are proxies.</p>
-              <div id="investmentResults" class="investment-results"></div>
-            </div>
-            <div id="summaryHighlights" class="summary-highlights"></div>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Series</th>
-                    <th>Start</th>
-                    <th>End</th>
-                    <th>Change</th>
-                  </tr>
-                </thead>
-                <tbody id="summaryBody"></tbody>
-              </table>
-            </div>
-          </details>
-        </section>
-
-        <section class="panel snapshot-bar compact-metrics" id="snapshotBar">
-          <div class="snapshot-item">
-            <p class="stat-label">Y-axis</p>
-            <p class="snapshot-value" id="yAxisLabel">Start = 100</p>
-          </div>
-          <div class="snapshot-item">
-            <p class="stat-label">Selected</p>
-            <p class="snapshot-value" id="selectedCount">3 lines</p>
-          </div>
-          <div class="snapshot-item">
-            <p class="stat-label">Reference</p>
-            <p class="snapshot-value" id="activeBenchmark">Rupiah</p>
-          </div>
-          <div class="snapshot-item">
-            <p class="stat-label">Window</p>
-            <p class="snapshot-value" id="windowMonths">68 months</p>
-            <p class="metric-sub muted" id="coverageText">2019-07 to 2025-02</p>
-          </div>
-        </section>
-
-        <section class="panel compact-panel utility-panel">
-          <details class="advanced-range utility-dates">
-            <summary>Custom month range</summary>
-            <div class="range-grid">
-              <div>
-                <label for="startDate">Start</label>
-                <select id="startDate"></select>
-              </div>
-              <div>
-                <label for="endDate">End</label>
-                <select id="endDate"></select>
-              </div>
-            </div>
-          </details>
-        </section>
-
-        <section class="panel explorer-panel compact-panel">
-          <details class="section-disclosure">
-            <summary class="section-summary">
-              <div>
-                <p class="kicker">Browse the full collection</p>
-                <h2>Stocks, currencies & commodities</h2>
-              </div>
-            </summary>
-
-            <div class="selection-strip compact">
-              <div>
-                <p class="selection-label">Selected now</p>
-                <div id="selectedChips" class="selected-chips"></div>
-              </div>
-            </div>
-
-            <div class="explorer-tools full-width">
-              <input id="seriesSearch" class="search-input" type="search" placeholder="Search ticker, company, sector, or group" aria-label="Search series" />
-            </div>
-
-            <div id="seriesList" class="series-groups"></div>
-          </details>
-        </section>
-
-
+    <main>
+      <section class="intro" aria-labelledby="pageTitle">
+        <div><p class="eyebrow">THE INDONESIAN MARKET, IN PERSPECTIVE</p><h1 id="pageTitle">Explore Indonesia’s<br /><em>markets over time.</em></h1></div>
+        <div class="intro-note"><p>Put stocks, gold and currencies on the same chart.<br />See what changes when you take the long view.</p><p id="datasetBadge" class="dataset-count">50 stocks <span>·</span> 11 market references</p></div>
       </section>
+
+      <section id="workspace" class="workspace" aria-label="Market comparison" tabindex="-1">
+        <div class="preset-strip">
+          <nav id="presetButtons" class="preset-row" aria-label="Ready-made comparisons">
+            <button type="button" data-preset="default" class="active" aria-pressed="true"><span class="preset-index">01</span> Overview</button>
+            <button type="button" data-preset="banks" aria-pressed="false">Banks</button>
+            <button type="button" data-preset="gold" aria-pressed="false">Stocks vs gold</button>
+            <button type="button" data-preset="commodities" aria-pressed="false">Coal</button>
+            <button type="button" data-preset="nickel" aria-pressed="false">Nickel</button>
+            <button type="button" data-preset="market" aria-pressed="false">Market indexes</button>
+          </nav>
+          <button id="resetSelections" class="text-button" type="button"><span aria-hidden="true">↺</span> Reset</button>
+        </div>
+
+        <div class="toolbar">
+          <div class="asset-control control-group"><span class="control-label">Your assets</span>
+            <details class="stock-toggle-dropdown" id="stockToggleDropdown">
+              <summary id="stockToggleSummary">＋ Add assets <span>4</span></summary>
+              <div class="stock-toggle-panel">
+                <div class="picker-heading"><strong>Build your comparison</strong><button type="button" id="closeAssetPicker" class="icon-button" aria-label="Close asset selector">×</button></div>
+                <input id="stockToggleSearch" class="search-input" type="search" placeholder="Search company, ticker or commodity…" aria-label="Search assets" autocomplete="off" />
+                <div class="asset-filters" id="assetFilters" role="group" aria-label="Asset category"><button type="button" data-category="all" class="active" aria-pressed="true">All</button><button type="button" data-category="stock" aria-pressed="false">Stocks</button><button type="button" data-category="index" aria-pressed="false">Indexes</button><button type="button" data-category="fx" aria-pressed="false">Currencies</button><button type="button" data-category="commodity" aria-pressed="false">Commodities</button></div>
+                <div id="stockToggleList" class="stock-toggle-list"></div>
+                <div class="picker-footer"><span id="selectionAdvice">Compare 2–5 assets for a clearer view.</span><button type="button" id="clearComparison" class="text-button">Clear all</button></div>
+              </div>
+            </details>
+          </div>
+          <div class="period-control control-group"><span class="control-label">Period</span><div class="period-options">
+            <div class="segmented timeframe-buttons" id="timeframeButtons"><button type="button" data-range="1Y">1Y</button><button type="button" data-range="3Y" class="active">3Y</button><button type="button" data-range="5Y">5Y</button><button type="button" data-range="MAX">Max</button></div>
+            <details class="date-popover" id="customDates"><summary aria-label="Custom date range" title="Custom date range"><svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="4" width="14" height="13" rx="2"/><path d="M6 2v4m8-4v4M3 9h14"/></svg></summary>
+              <div class="date-panel"><strong>Custom period</strong><div class="range-grid"><label for="startDate">From<select id="startDate"></select></label><label for="endDate">To<select id="endDate"></select></label></div><p id="rangeWindowLabel" class="muted"></p><button type="button" id="closeDatePicker" class="subtle-button">Done</button></div>
+            </details>
+          </div></div>
+          <div class="view-control control-group"><span class="control-label">View</span><div id="modeButtons" class="segmented mode-buttons" role="group" aria-label="Chart view"><button type="button" class="mode-button active" data-mode="growth" aria-pressed="true">Growth</button><button type="button" class="mode-button" data-mode="price" aria-pressed="false">Price</button><button type="button" class="mode-button" data-mode="relative" aria-pressed="false">Vs benchmark</button></div></div>
+          <div class="reference-control control-group" id="benchmarkBlock"><label id="benchmarkLabel" for="benchmarkSelect" class="control-label">Measure in</label><select id="benchmarkSelect" aria-label="Choose comparison reference"></select></div>
+        </div>
+
+        <div class="comparison-layout">
+          <section class="chart-panel" aria-labelledby="chartTitle">
+            <div class="chart-head"><div><p class="eyebrow">PERFORMANCE OVER TIME</p><h2 id="chartTitle">A common starting point.</h2></div><span id="chartBasis" class="chart-basis">BASE 100 / IDR</span></div>
+            <div id="legend" class="legend" aria-label="Chart lines"></div>
+            <div class="chart-stage" id="chartStage"><svg id="chart" viewBox="0 0 1000 460" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Historical performance comparison"></svg><div id="chartTooltip" class="chart-tooltip" aria-hidden="true"></div><div id="chartEmptyState" class="chart-empty hidden" role="status"></div></div>
+            <div class="chart-caption"><span id="chartSubtitle">All assets start at 100. A value of 120 means a 20% increase.</span><span id="chartRangeLabel"></span></div>
+            <p id="sharedWindowNote" class="shared-window" aria-live="polite"></p>
+          </section>
+
+          <aside class="comparison-panel" aria-labelledby="comparisonTitle">
+            <div class="comparison-heading"><div><p class="eyebrow">THE PERIOD AT A GLANCE</p><h2 id="comparisonTitle">Your comparison</h2></div><span id="selectedCount" class="count-badge">04</span></div>
+            <div id="resultMode" class="segmented result-mode" role="group" aria-label="Comparison results"><button type="button" data-result="percent" class="active" aria-pressed="true">% change</button><button type="button" data-result="money" aria-pressed="false">Rp1 million</button></div>
+            <p id="resultContext" class="result-context">Change over the selected period</p>
+            <div id="comparisonResults" class="comparison-results" aria-live="polite"></div>
+            <div class="comparison-bottom"><p id="comparisonNote">Price movement only. Dividends and costs excluded.</p><span class="interaction-hint"><span aria-hidden="true">↖</span> Hover an asset to follow its line</span></div>
+          </aside>
+        </div>
+
+        <details class="change-diagnostics" id="changeDiagnostics"><summary><span><span class="section-number">02</span> Monthly detail</span><span class="disclosure-icon" aria-hidden="true">+</span></summary><div class="diagnostic-content"><div class="diagnostic-grid"><article><div class="diagnostic-head"><h3>Monthly change</h3><span id="changeUnitLabel">Index points</span></div><svg id="changeChart" class="mini-chart" viewBox="0 0 520 220" aria-label="Monthly change chart"></svg></article><article><div class="diagnostic-head"><h3>Rate of change</h3><span>% per month</span></div><svg id="rateChart" class="mini-chart" viewBox="0 0 520 220" aria-label="Monthly rate of change"></svg></article></div><div class="table-wrap"><table><thead><tr><th>Asset</th><th>Latest</th><th>Change</th><th>Rate</th></tr></thead><tbody id="diagnosticBody"></tbody></table></div></div><div id="diagnosticTooltip" class="diagnostic-tooltip" aria-hidden="true"></div></details>
+      </section>
+
+      <details class="data-sources" id="dataSources"><summary><span><span class="section-number">03</span> About the data</span><span class="disclosure-icon" aria-hidden="true">+</span></summary><div class="source-grid"><div><h3>Monthly, with a longer view.</h3><p id="sourceCoverage">History from January 2010, where available. Every comparison uses the dates shared by the selected assets.</p></div><div><h3>Prices in perspective.</h3><p>Stocks, indexes and currencies use monthly closes from <a href="https://finance.yahoo.com/" target="_blank" rel="noreferrer">Yahoo Finance ↗</a>. Commodities use monthly averages from the <a href="https://www.worldbank.org/en/research/commodity-markets" target="_blank" rel="noreferrer">World Bank ↗</a>.</p><p>Price movements exclude cash dividends and costs. Indexes and commodities are comparison proxies. The stock collection is curated; it does not represent historical index membership.</p></div></div></details>
     </main>
+    <footer class="site-footer"><a href="./" class="brand">ID<span>Market</span></a><span>Different assets. A shared perspective.</span><span>Monthly data · Built for exploration</span></footer>
   </div>
 
   <script id="embedded-series-csv" type="text/plain">date,series_id,display_name,category,value,unit,frequency

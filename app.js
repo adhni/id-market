@@ -1,4 +1,13 @@
-const COLORS = ["#0f766e", "#f97316", "#2563eb", "#dc2626", "#7c3aed", "#059669", "#d97706", "#0284c7", "#be123c", "#4f46e5"];
+const COLORS = ["#5be3b1", "#82b7ff", "#efc66c", "#bb9df2", "#edac91", "#d9ff57", "#76d6dc", "#dfa5cf", "#abc6a0", "#c6cfe0"];
+const SERIES_COLORS = { IHSG: COLORS[0], BBCA: COLORS[1], GOLD: COLORS[2], USDIDR: COLORS[3], BBRI: COLORS[4], BMRI: COLORS[6], BBNI: COLORS[5], LQ45: COLORS[7], COAL: COLORS[2], ADRO: COLORS[0], PTBA: COLORS[1], ITMG: COLORS[3], NICKEL: COLORS[0], ANTM: COLORS[2], INCO: COLORS[1], MDKA: COLORS[3] };
+function seriesColor(id) {
+  if (SERIES_COLORS[id]) return SERIES_COLORS[id];
+  const hash = [...id].reduce((sum, char) => sum * 31 + char.charCodeAt(0), 0);
+  return COLORS[Math.abs(hash) % COLORS.length];
+}
+function escapeHTML(value) {
+  return String(value).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+}
 const DEFAULT_SERIES = ["IHSG", "BBCA", "GOLD", "USDIDR"];
 const PRICE_GROWTH_BENCHMARK_IDS = ["IDR", "USDIDR", "EURIDR", "JPYIDR", "GOLD", "OIL_WTI", "COAL", "NICKEL", "PALM_OIL", "RICE"];
 const RELATIVE_BENCHMARK_IDS = ["IDR", "USDIDR", "GOLD", "OIL_WTI", "IHSG", "LQ45"];
@@ -6,12 +15,6 @@ const CHART_DIMS = { width: 1100, height: 520, pad: { top: 28, right: 28, bottom
 const TROY_OUNCE_IN_GRAMS = 31.1034768;
 const BARREL_IN_LITERS = 158.987294928;
 const METRIC_TON_IN_KILOGRAMS = 1000;
-const SERIES_GROUPS = [
-  { key: "stock", title: "Stocks", caption: "Indonesian listed names grouped by sector." },
-  { key: "fx", title: "Currencies", caption: "Currency reference series." },
-  { key: "commodity", title: "Commodities", caption: "Global benchmark commodities in the bundled data." },
-  { key: "index", title: "Market indexes", caption: "Other series in the dataset." },
-];
 
 const state = {
   rawSeries: [],
@@ -25,8 +28,10 @@ const state = {
   endDate: null,
   allDates: [],
   hoverIndex: null,
-  seriesSearch: "",
-  openGroups: new Set(),
+  assetCategory: "all",
+  activePreset: "default",
+  resultMode: "percent",
+  highlightedSeries: null,
   lastDisplay: { series: [], dates: [], units: [] },
 };
 
@@ -191,76 +196,76 @@ function buildMaps(seriesRows, metadataRows) {
 }
 
 function setupControls() {
-  renderSeriesList();
   renderBenchmarkOptions();
   renderStockToggleDropdown();
   populateDateSelects();
-  renderSelectedChips();
-  setupTooltipButtons();
-  document.getElementById("clearComparison").addEventListener("click", () => applyPreset("clear"));
   setupModeButtons();
-
-  document.getElementById("modeSelect").addEventListener("change", (event) => {
-    state.mode = event.target.value;
-    render();
-  });
-
+  document.getElementById("clearComparison").addEventListener("click", () => applyPreset("clear"));
   document.getElementById("benchmarkSelect").addEventListener("change", (event) => {
     state.benchmark = event.target.value;
-    render();
-  });
-
-  document.getElementById("seriesSearch").addEventListener("input", (event) => {
-    state.seriesSearch = event.target.value.trim().toLowerCase();
-    renderSeriesList();
-  });
-
-  document.getElementById("stockToggleSearch")?.addEventListener("input", () => {
-    renderStockToggleDropdown();
-  });
-
-  document.getElementById("startDate").addEventListener("change", (event) => {
-    state.startDate = event.target.value;
-    clampDateRange();
-    syncTimeframeButtons(null);
-    render();
-  });
-
-  document.getElementById("endDate").addEventListener("change", (event) => {
-    state.endDate = event.target.value;
-    clampDateRange();
-    syncTimeframeButtons(null);
-    render();
-  });
-
-  setupDateRangeSlider();
-
-  document.getElementById("resetSelections").addEventListener("click", () => {
-    state.selectedSeries = new Set(DEFAULT_SERIES.filter((id) => state.metadataMap.has(id)));
-    state.mode = "growth";
-    state.benchmark = "IDR";
-    state.startDate = state.allDates[0];
-    state.endDate = state.allDates[state.allDates.length - 1];
     state.hoverIndex = null;
-    state.seriesSearch = "";
-    state.openGroups = new Set();
-    document.getElementById("modeSelect").value = state.mode;
-    document.getElementById("benchmarkSelect").value = state.benchmark;
-    document.getElementById("seriesSearch").value = "";
+    render();
+  });
+  document.getElementById("stockToggleSearch").addEventListener("input", renderStockToggleDropdown);
+  for (const field of ["startDate", "endDate"]) {
+    document.getElementById(field).addEventListener("change", (event) => {
+      state[field] = event.target.value;
+      state.hoverIndex = null;
+      clampDateRange();
+      syncTimeframeButtons(null);
+      render();
+    });
+  }
+  document.getElementById("resetSelections").addEventListener("click", () => {
+    state.resultMode = "percent";
+    state.assetCategory = "all";
     document.getElementById("stockToggleSearch").value = "";
-    document.getElementById("investmentView").checked = true;
-    populateDateSelects();
-    renderSeriesList();
-    renderSelectedChips();
+    document.querySelectorAll(".toolbar details").forEach((el) => { el.open = false; });
+    applyPreset("default");
     applyTimeframe("3Y");
   });
-
   document.querySelectorAll("#timeframeButtons button").forEach((button) => {
     button.addEventListener("click", () => applyTimeframe(button.dataset.range));
   });
-
   document.querySelectorAll("#presetButtons button").forEach((button) => {
     button.addEventListener("click", () => applyPreset(button.dataset.preset));
+  });
+  document.querySelectorAll("#assetFilters button").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.assetCategory = button.dataset.category;
+      renderStockToggleDropdown();
+    });
+  });
+  document.querySelectorAll("#resultMode button").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.resultMode = button.dataset.result;
+      renderSummary(state.lastDisplay.series);
+    });
+  });
+  for (const [button, panel] of [["closeAssetPicker", "stockToggleDropdown"], ["closeDatePicker", "customDates"]]) {
+    document.getElementById(button).addEventListener("click", () => {
+      document.getElementById(panel).open = false;
+      document.querySelector(`#${panel} summary`).focus();
+    });
+  }
+  document.querySelectorAll(".toolbar details").forEach((panel) => {
+    panel.addEventListener("toggle", () => {
+      if (panel.open) {
+        document.querySelectorAll(".toolbar details").forEach((other) => { if (other !== panel) other.open = false; });
+        if (panel.id === "stockToggleDropdown") document.getElementById("stockToggleSearch").focus();
+      }
+    });
+  });
+  document.addEventListener("click", (event) => {
+    document.querySelectorAll(".toolbar details[open]").forEach((panel) => {
+      if (!panel.contains(event.target)) panel.open = false;
+    });
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") document.querySelectorAll(".toolbar details[open]").forEach((panel) => {
+      panel.open = false;
+      panel.querySelector("summary").focus();
+    });
   });
 }
 
@@ -268,128 +273,9 @@ function setupModeButtons() {
   document.querySelectorAll("#modeButtons .mode-button").forEach((button) => {
     button.addEventListener("click", () => {
       state.mode = button.dataset.mode;
-      document.getElementById("modeSelect").value = state.mode;
+      state.hoverIndex = null;
       render();
     });
-  });
-}
-
-function setupTooltipButtons() {
-  document.querySelectorAll(".info-dot").forEach((button) => {
-    button.addEventListener("click", () => {
-      button.classList.toggle("open");
-    });
-    button.addEventListener("blur", () => {
-      button.classList.remove("open");
-    });
-  });
-}
-
-function renderSeriesList() {
-  const host = document.getElementById("seriesList");
-  host.innerHTML = "";
-  const rows = [...state.metadata].sort((a, b) => sortMeta(a, b));
-  const grouped = new Map(SERIES_GROUPS.map((group) => [group.key, []]));
-
-  rows.forEach((row) => {
-    const haystack = `${row.series_id} ${row.display_name} ${row.short_name} ${row.category} ${row.sector || ""}`.toLowerCase();
-    if (state.seriesSearch && !haystack.includes(state.seriesSearch)) return;
-    const groupKey = grouped.has(row.category) ? row.category : "index";
-    grouped.get(groupKey).push(row);
-  });
-
-  SERIES_GROUPS.forEach((group) => {
-    const items = grouped.get(group.key) || [];
-    if (!items.length) return;
-
-    const shouldOpen = state.seriesSearch ? true : state.openGroups.has(group.key);
-
-    const wrapper = document.createElement("section");
-    wrapper.className = `series-group ${shouldOpen ? "open" : ""}`;
-    wrapper.innerHTML = `
-      <button type="button" class="group-toggle" aria-expanded="${shouldOpen}">
-        <span class="group-title">
-          <span class="group-name">${group.title}</span>
-          <span class="group-caption">${group.caption}</span>
-        </span>
-        <span class="group-count">${items.length} series</span>
-      </button>
-      <div class="group-body">
-        <div class="series-grid"></div>
-      </div>
-    `;
-
-    wrapper.querySelector(".group-toggle").addEventListener("click", () => {
-      // Keep the search experience obvious by auto-opening all groups while filtering.
-      if (state.seriesSearch) return;
-      if (state.openGroups.has(group.key)) {
-        state.openGroups.delete(group.key);
-      } else {
-        state.openGroups.add(group.key);
-      }
-      renderSeriesList();
-    });
-
-    const grid = wrapper.querySelector(".series-grid");
-    items.forEach((row) => {
-      const checked = state.selectedSeries.has(row.series_id);
-      const coverage = formatCoverageLabel(row);
-      const label = document.createElement("label");
-      label.className = `series-item ${checked ? "active" : ""}`;
-      label.innerHTML = `
-        <input type="checkbox" value="${row.series_id}" ${checked ? "checked" : ""} />
-        <span class="series-copy">
-          <span class="series-name">${row.display_name}</span>
-          <span class="series-meta">${row.short_name} · ${row.category}${row.sector ? ` · ${row.sector}` : ""}${coverage ? ` · ${coverage}` : ""}</span>
-        </span>
-      `;
-      label.querySelector("input").addEventListener("change", (event) => {
-        if (event.target.checked) {
-          state.selectedSeries.add(row.series_id);
-          state.openGroups.add(group.key);
-        } else {
-          state.selectedSeries.delete(row.series_id);
-        }
-        state.hoverIndex = null;
-        renderSeriesList();
-        renderSelectedChips();
-        render();
-      });
-      grid.appendChild(label);
-    });
-
-    host.appendChild(wrapper);
-  });
-
-  if (!host.children.length) {
-    host.innerHTML = `<div class="selected-empty">No matches. Try BBCA, gold, a sector like banks, or clear the search.</div>`;
-  }
-}
-
-function renderSelectedChips() {
-  const host = document.getElementById("selectedChips");
-  const selected = [...state.selectedSeries]
-    .map((id) => state.metadataMap.get(id))
-    .filter(Boolean)
-    .sort((a, b) => sortMeta(a, b));
-
-  if (!selected.length) {
-    host.innerHTML = `<span class="selected-empty">Pick a comparison above or add something to explore.</span>`;
-    return;
-  }
-
-  host.innerHTML = "";
-  selected.forEach((row) => {
-    const chip = document.createElement("span");
-    chip.className = "selected-chip";
-    chip.innerHTML = `${row.short_name}<button type="button" aria-label="Remove ${row.short_name}">&times;</button>`;
-    chip.querySelector("button").addEventListener("click", () => {
-      state.selectedSeries.delete(row.series_id);
-      renderSeriesList();
-      renderSelectedChips();
-      render();
-    });
-    host.appendChild(chip);
   });
 }
 
@@ -409,22 +295,9 @@ function applyPreset(preset) {
     state.benchmark = "IDR";
   }
   state.hoverIndex = null;
-  state.openGroups = new Set();
-  renderSeriesList();
-  renderSelectedChips();
+  state.activePreset = preset === "clear" ? null : preset;
+  state.highlightedSeries = null;
   render();
-}
-
-function sortMeta(a, b) {
-  const order = { stock: 0, fx: 1, commodity: 2, index: 3 };
-  return (order[a.category] ?? 99) - (order[b.category] ?? 99) || a.display_name.localeCompare(b.display_name);
-}
-
-function formatCoverageLabel(row) {
-  if (!row?.coverage_start || !row?.coverage_end) return "";
-  const start = row.coverage_start.slice(0, 7);
-  const end = row.coverage_end.slice(0, 7);
-  return start === end ? start : `${start} to ${end}`;
 }
 
 function getBenchmarkDef(id = state.benchmark) {
@@ -512,57 +385,37 @@ function renderBenchmarkOptions() {
 
 function renderStockToggleDropdown() {
   const host = document.getElementById("stockToggleList");
-  const summary = document.getElementById("stockToggleSummary");
-  const searchInput = document.getElementById("stockToggleSearch");
-  if (!host || !summary) return;
-
-  const selectedCount = state.selectedSeries.size;
-  summary.textContent = selectedCount === 1 ? "1 selected" : `${selectedCount} selected`;
-
-  const searchTerm = searchInput?.value?.trim().toLowerCase() || "";
-  const stocks = [...state.metadata]
-    .filter((row) => {
-      if (!searchTerm) return true;
-      const haystack = `${row.series_id} ${row.display_name} ${row.short_name} ${row.sector} ${row.category}`.toLowerCase();
-      return haystack.includes(searchTerm);
-    })
-    .sort((a, b) => a.display_name.localeCompare(b.display_name));
-
+  document.getElementById("stockToggleSummary").innerHTML = `<span aria-hidden="true">＋</span> Add assets <span class="asset-count">${state.selectedSeries.size}</span>`;
+  const search = document.getElementById("stockToggleSearch").value.trim().toLowerCase();
+  document.querySelectorAll("#assetFilters button").forEach((button) => {
+    const active = state.assetCategory === button.dataset.category;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", active);
+  });
+  const rows = state.metadata.filter((row) => (state.assetCategory === "all" || row.category === state.assetCategory) &&
+    `${row.series_id} ${row.display_name} ${row.short_name} ${row.sector} ${row.category}`.toLowerCase().includes(search)
+  ).sort((a, b) => Number(state.selectedSeries.has(b.series_id)) - Number(state.selectedSeries.has(a.series_id)) || a.short_name.localeCompare(b.short_name));
   host.innerHTML = "";
-
-  if (!stocks.length) {
-    host.innerHTML = `<div class="selected-empty">No matches. Try a company, gold, currency, or sector.</div>`;
-    return;
-  }
-
-  stocks.forEach((row) => {
+  for (const row of rows) {
     const label = document.createElement("label");
     label.className = "stock-toggle-item";
-    const checked = state.selectedSeries.has(row.series_id);
-    const coverage = formatCoverageLabel(row);
-    label.innerHTML = `
-      <input type="checkbox" value="${row.series_id}" ${checked ? "checked" : ""} />
-      <span class="stock-toggle-copy">
-        <span class="stock-toggle-name">${row.short_name}</span>
-        <span class="stock-toggle-meta">${row.display_name}${coverage ? ` · ${coverage}` : ""}</span>
-      </span>
-    `;
-
+    label.innerHTML = `<input type="checkbox" value="${escapeHTML(row.series_id)}" ${state.selectedSeries.has(row.series_id) ? "checked" : ""} />
+      <span class="picker-swatch" style="background:${seriesColor(row.series_id)}"></span>
+      <span class="stock-toggle-copy"><strong>${escapeHTML(row.short_name)}</strong><span>${escapeHTML(row.display_name)}</span></span><span class="asset-category">${escapeHTML(row.category === "fx" ? "FX" : row.category)}</span>`;
     label.querySelector("input").addEventListener("change", (event) => {
-      if (event.target.checked) {
-        state.selectedSeries.add(row.series_id);
-        state.openGroups.add(row.category);
-      } else {
-        state.selectedSeries.delete(row.series_id);
-      }
+      if (event.target.checked) state.selectedSeries.add(row.series_id);
+      else state.selectedSeries.delete(row.series_id);
+      state.activePreset = null;
       state.hoverIndex = null;
-      renderSeriesList();
-      renderSelectedChips();
+      state.highlightedSeries = null;
       render();
+      // Keep keyboard users on the item they just changed after reordering.
+      host.querySelector(`input[value="${CSS.escape(row.series_id)}"]`)?.focus({ preventScroll: true });
     });
-
     host.appendChild(label);
-  });
+  }
+  if (!rows.length) host.innerHTML = '<p class="picker-empty">No matches. Try another name or category.</p>';
+  document.getElementById("selectionAdvice").textContent = state.selectedSeries.size > 5 ? "Try fewer assets for an easier comparison." : "Compare 2–5 assets for a clearer view.";
 }
 
 function populateDateSelects() {
@@ -588,6 +441,7 @@ function applyTimeframe(range) {
     const targetStr = `${target.getUTCFullYear()}-${String(target.getUTCMonth() + 1).padStart(2, "0")}-01`;
     state.startDate = state.allDates.find((date) => date >= targetStr) || state.allDates[0];
   }
+  state.hoverIndex = null;
   populateDateSelects();
   syncTimeframeButtons(range);
   render();
@@ -596,6 +450,7 @@ function applyTimeframe(range) {
 function syncTimeframeButtons(active) {
   document.querySelectorAll("#timeframeButtons button").forEach((button) => {
     button.classList.toggle("active", button.dataset.range === active);
+    button.setAttribute("aria-pressed", String(button.dataset.range === active));
   });
 }
 
@@ -608,72 +463,6 @@ function clampDateRange() {
     }
     populateDateSelects();
   }
-}
-
-function setupDateRangeSlider() {
-  const startSlider = document.getElementById("rangeStart");
-  const endSlider = document.getElementById("rangeEnd");
-  if (!startSlider || !endSlider) return;
-
-  startSlider.addEventListener("input", (event) => {
-    const rawStart = Number(event.target.value);
-    const end = state.allDates.indexOf(state.endDate);
-    const start = Math.min(rawStart, end);
-    applyDateRangeByIndex(start, end);
-  });
-
-  endSlider.addEventListener("input", (event) => {
-    const rawEnd = Number(event.target.value);
-    const start = state.allDates.indexOf(state.startDate);
-    const end = Math.max(rawEnd, start);
-    applyDateRangeByIndex(start, end);
-  });
-}
-
-function applyDateRangeByIndex(startIndex, endIndex) {
-  if (!state.allDates.length) return;
-  const max = state.allDates.length - 1;
-  const safeStart = Math.max(0, Math.min(startIndex, max));
-  const safeEnd = Math.max(safeStart, Math.min(endIndex, max));
-  state.startDate = state.allDates[safeStart];
-  state.endDate = state.allDates[safeEnd];
-  populateDateSelects();
-  syncTimeframeButtons(null);
-  render();
-}
-
-function syncDateRangeSlider() {
-  const startSlider = document.getElementById("rangeStart");
-  const endSlider = document.getElementById("rangeEnd");
-  const fill = document.getElementById("dateRangeFill");
-  const startLabel = document.getElementById("rangeStartLabel");
-  const endLabel = document.getElementById("rangeEndLabel");
-  const windowLabel = document.getElementById("rangeWindowLabel");
-
-  if (!startSlider || !endSlider || !fill || !startLabel || !endLabel || !windowLabel || !state.allDates.length) return;
-
-  const max = state.allDates.length - 1;
-  startSlider.min = "0";
-  endSlider.min = "0";
-  startSlider.max = String(max);
-  endSlider.max = String(max);
-
-  const startIndex = Math.max(0, state.allDates.indexOf(state.startDate));
-  const endIndex = Math.max(startIndex, state.allDates.indexOf(state.endDate));
-  startSlider.value = String(startIndex);
-  endSlider.value = String(endIndex);
-
-  const leftPct = max > 0 ? (startIndex / max) * 100 : 0;
-  const rightPct = max > 0 ? (endIndex / max) * 100 : 100;
-  fill.style.left = `${leftPct}%`;
-  fill.style.width = `${Math.max(0, rightPct - leftPct)}%`;
-
-  const startMonth = state.allDates[startIndex];
-  const endMonth = state.allDates[endIndex];
-  const months = endIndex - startIndex + 1;
-  startLabel.textContent = formatMonth(startMonth);
-  endLabel.textContent = formatMonth(endMonth);
-  windowLabel.textContent = `${formatMonth(startMonth)} to ${formatMonth(endMonth)} (${months} mo)`;
 }
 
 function formatMonth(date) {
@@ -780,133 +569,116 @@ function render() {
   renderStockToggleDropdown();
   const display = buildDisplaySeries();
   state.lastDisplay = display;
-  const maxIndex = display.dates.length ? display.dates.length - 1 : null;
-  if (state.hoverIndex != null && (maxIndex == null || state.hoverIndex > maxIndex)) {
-    state.hoverIndex = maxIndex;
-  }
-
+  if (state.hoverIndex != null && state.hoverIndex >= display.dates.length) state.hoverIndex = null;
   renderLegend(display.series);
   renderChart(display);
   renderSummary(display.series);
-  renderInvestment(display);
   renderDiagnostics(display);
   updateSnapshot(display);
-  syncDateRangeSlider();
-  document.getElementById("coverageText").textContent = display.dates.length ? `${formatMonth(display.dates[0])} to ${formatMonth(display.dates.at(-1))}` : "No shared dates";
+  document.querySelectorAll("#presetButtons button").forEach((button) => {
+    const active = button.dataset.preset === state.activePreset;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", active);
+  });
 }
 
 function updateCopy() {
   const label = getBenchmarkLabel();
   const price = state.mode === "price";
   const relative = state.mode === "relative";
-  document.getElementById("chartTitle").textContent = price ? "Price over time" : relative ? `Compared with ${label}` : "How did they compare?";
-  document.getElementById("chartSubtitle").textContent = price
-    ? `Monthly prices measured in ${label}.`
-    : `Everything starts at 100. A finish at 120 means a 20% increase in ${label} terms.`;
-  document.getElementById("yAxisExplain").textContent = relative ? "Above 100 = ahead of the reference. Below 100 = behind it." : "";
-  document.getElementById("yAxisLabel").textContent = price ? getPriceDisplayUnit() : "Start = 100";
-  document.getElementById("chartFootnote").textContent = "Monthly exploration · price movements, excluding cash dividends. Commodity monthly averages are compared with month-end financial prices. Tap or hover to explore.";
-}
-
-function renderInvestment(display) {
-  const host = document.getElementById("investmentResults");
-  const enabled = document.getElementById("investmentView").checked;
-  const available = state.mode === "growth" && state.benchmark === "IDR" && display.series.length;
-  document.getElementById("investmentBlock").hidden = !available;
-  host.hidden = !enabled;
-  host.innerHTML = available ? display.series.map((series, index) => {
-    const end = 1000000 * series.values.at(-1).value / series.values[0].value;
-    return `<article class="investment-card"><span><i class="legend-swatch" style="background:${COLORS[index % COLORS.length]}"></i>${series.meta.short_name}</span><strong>Rp${Math.round(end).toLocaleString("id-ID")}</strong></article>`;
-  }).join("") : "";
+  document.getElementById("chartTitle").textContent = price ? "Price over time." : relative ? `Against ${label}.` : "A common starting point.";
+  document.getElementById("chartSubtitle").textContent = price ? `Monthly prices in ${label}.` : relative ? "Above 100 = ahead of the benchmark." : "All assets start at 100. A value of 120 means a 20% increase.";
+  document.getElementById("chartBasis").textContent = `${price ? "PRICE" : "BASE 100"} / ${state.benchmark === "USDIDR" ? "USD" : state.benchmark}`;
 }
 
 function updateSnapshot(display) {
-  const selectedCount = document.getElementById("selectedCount");
-  const activeBenchmark = document.getElementById("activeBenchmark");
-  const windowMonths = document.getElementById("windowMonths");
-  const chartReadingHint = document.getElementById("chartReadingHint");
-  const benchmarkName = getBenchmarkLabel();
-  const months = display.dates.length;
-  const note = document.getElementById("sharedWindowNote");
-  note.textContent = months ? `Comparing ${formatMonth(display.dates[0])} – ${formatMonth(display.dates.at(-1))} · ${months} shared monthly observations${display.dates[0] !== state.startDate || display.dates.at(-1) !== state.endDate ? ". Adjusted to the history available for every selected line." : ""}` : "";
-  document.getElementById("selectionAdvice").textContent = state.selectedSeries.size > 5 ? "Lots to explore! Try 2–5 lines for an easier comparison." : "Tip: start with 2–5 lines.";
+  const dates = display.dates;
+  const range = dates.length ? `${formatMonth(dates[0])} — ${formatMonth(dates.at(-1))}` : "No shared dates";
+  document.getElementById("chartRangeLabel").textContent = range;
+  document.getElementById("rangeWindowLabel").textContent = `${formatMonth(state.startDate)} to ${formatMonth(state.endDate)}`;
+  const adjusted = dates.length && (dates[0] !== state.startDate || dates.at(-1) !== state.endDate);
+  document.getElementById("sharedWindowNote").textContent = adjusted ? `Adjusted to the history available for every asset: ${range}.` : "";
+  document.getElementById("selectedCount").textContent = String(display.series.length).padStart(2, "0");
+}
 
-  selectedCount.textContent = `${display.series.length} ${display.series.length === 1 ? "line" : "lines"}`;
-  activeBenchmark.textContent = (state.mode === "relative" || state.mode === "price" || state.mode === "growth") ? benchmarkName : "Off in this mode";
-  windowMonths.textContent = months ? `${months} ${months === 1 ? "month" : "months"}` : "No shared window";
+function highlightSeries(id) {
+  state.highlightedSeries = id;
+  document.querySelectorAll("#chart .series-line").forEach((line) => {
+    line.style.opacity = !id || line.dataset.series === id ? "1" : ".15";
+    line.querySelector("polyline").style.strokeWidth = id === line.dataset.series ? "3" : "2";
+  });
+  document.querySelectorAll(".legend-item, .comparison-row").forEach((row) => {
+    row.classList.toggle("is-highlighted", row.dataset.series === id);
+    row.classList.toggle("is-muted", Boolean(id && row.dataset.series !== id));
+  });
+}
 
-  if (!display.series.length) {
-    chartReadingHint.textContent = "Adjust the selection or date window";
-  } else if (state.mode === "price") {
-    chartReadingHint.textContent = `Priced in ${benchmarkName}`;
-  } else if (state.mode === "growth") {
-    chartReadingHint.textContent = `Growth rebased in ${benchmarkName} terms`;
-  } else if (state.mode === "relative") {
-    chartReadingHint.textContent = `Relative to ${benchmarkName}`;
-  } else {
-    chartReadingHint.textContent = "Hover the chart for monthly detail";
-  }
+function bindHighlight(element, id) {
+  element.addEventListener("mouseenter", () => highlightSeries(id));
+  element.addEventListener("mouseleave", () => highlightSeries(null));
+  element.addEventListener("focusin", () => highlightSeries(id));
+  element.addEventListener("focusout", () => highlightSeries(null));
 }
 
 function renderLegend(displaySeries) {
   const legend = document.getElementById("legend");
   legend.innerHTML = "";
-  displaySeries.forEach((series, index) => {
-    const item = document.createElement("div");
+  for (const series of displaySeries) {
+    const item = document.createElement("button");
+    item.type = "button";
     item.className = "legend-item";
-    item.innerHTML = `<span class="legend-swatch" style="background:${COLORS[index % COLORS.length]}"></span>${series.meta.short_name}`;
+    item.dataset.series = series.id;
+    item.innerHTML = `<span class="legend-swatch" style="background:${seriesColor(series.id)}"></span>${escapeHTML(series.meta.short_name)}`;
+    bindHighlight(item, series.id);
     legend.appendChild(item);
-  });
+  }
 }
 
 function renderSummary(displaySeries) {
-  const tbody = document.getElementById("summaryBody");
-  const highlights = document.getElementById("summaryHighlights");
-  tbody.innerHTML = "";
-  highlights.innerHTML = "";
-
+  const host = document.getElementById("comparisonResults");
+  const moneyAvailable = state.mode === "growth" && state.benchmark === "IDR";
+  if (!moneyAvailable) state.resultMode = "percent";
+  const money = state.resultMode === "money";
+  document.querySelector('[data-result="money"]').disabled = !moneyAvailable;
+  document.querySelector('[data-result="money"]').title = moneyAvailable ? "Value following each asset from Rp1 million" : "Available in Growth measured in Rupiah";
+  document.querySelectorAll("#resultMode button").forEach((button) => {
+    const active = button.dataset.result === state.resultMode;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", active);
+  });
+  document.getElementById("resultContext").textContent = money ? "If Rp1 million followed each asset" : `Change in ${getBenchmarkLabel()} terms`;
+  document.getElementById("comparisonNote").textContent = money ? "An illustration of price movement, excluding dividends and costs. Indexes and commodities are proxies." : "Price movement only. Dividends and costs excluded.";
+  host.innerHTML = "";
   if (!displaySeries.length) {
-    highlights.innerHTML = `<div class="highlight-card empty">No summary yet. Select at least one series with a valid shared monthly window.</div>`;
+    host.innerHTML = '<p class="results-empty">Your results will appear here once there is a comparison to show.</p>';
     return;
   }
-
-  const ranked = displaySeries.map((series) => {
-    const start = series.values[0]?.value;
-    const end = series.values[series.values.length - 1]?.value;
-    const pct = ((end / start) - 1) * 100;
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${series.meta.display_name}</td>
-      <td>${formatSummaryValue(start, series.rawUnit)}</td>
-      <td>${formatSummaryValue(end, series.rawUnit)}</td>
-      <td class="${pct >= 0 ? "positive" : "negative"}">${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%</td>
-    `;
-    tbody.appendChild(tr);
-
-    return { series, start, end, pct };
-  }).sort((a, b) => b.pct - a.pct);
-
-  const leader = ranked[0];
-  const laggard = ranked[ranked.length - 1];
-  const avgPct = ranked.reduce((sum, item) => sum + item.pct, 0) / ranked.length;
-
-  highlights.innerHTML = `
-    <div class="highlight-card">
-      <span class="highlight-label">Leader</span>
-      <strong>${leader.series.meta.short_name}</strong>
-      <span class="${leader.pct >= 0 ? "positive" : "negative"}">${leader.pct >= 0 ? "+" : ""}${leader.pct.toFixed(1)}%</span>
-    </div>
-    <div class="highlight-card">
-      <span class="highlight-label">Laggard</span>
-      <strong>${laggard.series.meta.short_name}</strong>
-      <span class="${laggard.pct >= 0 ? "positive" : "negative"}">${laggard.pct >= 0 ? "+" : ""}${laggard.pct.toFixed(1)}%</span>
-    </div>
-    <div class="highlight-card">
-      <span class="highlight-label">Average move</span>
-      <strong>${avgPct >= 0 ? "+" : ""}${avgPct.toFixed(1)}%</strong>
-      <span>${ranked.length} selected lines</span>
-    </div>
-  `;
+  for (const series of displaySeries) {
+    const values = series.values.map((point) => point.value);
+    const ratio = values.at(-1) / values[0];
+    const pct = (ratio - 1) * 100;
+    const formatted = money ? `Rp${Math.round(1000000 * ratio).toLocaleString("id-ID")}` : `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`;
+    const min = Math.min(...values), span = Math.max(...values) - min || 1;
+    const points = values.map((value, index) => `${index / Math.max(values.length - 1, 1) * 70},${22 - (value - min) / span * 20}`).join(" ");
+    const row = document.createElement("div");
+    row.className = "comparison-row";
+    row.dataset.series = series.id;
+    row.innerHTML = `<button class="asset-result" type="button" aria-label="Highlight ${escapeHTML(series.meta.short_name)}: ${formatted}">
+      <span class="result-name"><span class="legend-swatch" style="background:${seriesColor(series.id)}"></span><strong>${escapeHTML(series.meta.short_name)}</strong></span>
+      <strong class="result-value ${money ? "" : valueTone(pct)}">${formatted}</strong>
+      <span class="result-company">${escapeHTML(series.meta.display_name)}</span>
+      <svg class="sparkline" viewBox="0 0 72 24" aria-hidden="true"><polyline points="${points}" fill="none" stroke="${seriesColor(series.id)}" stroke-width="1.4" /></svg>
+      </button><button class="remove-asset" type="button" aria-label="Remove ${escapeHTML(series.meta.short_name)}">×</button>`;
+    row.querySelector(".remove-asset").addEventListener("click", () => {
+      state.selectedSeries.delete(series.id);
+      state.activePreset = null;
+      state.highlightedSeries = null;
+      state.hoverIndex = null;
+      render();
+    });
+    bindHighlight(row, series.id);
+    host.appendChild(row);
+  }
 }
 
 function renderDiagnostics(display) {
@@ -1001,16 +773,16 @@ function renderMiniChart(svgId, diagnostics, config) {
   const lines = diagnostics.map((item, index) => ({
     id: item.id,
     label: item.meta.short_name,
-    color: COLORS[index % COLORS.length],
+    color: seriesColor(item.id),
     item,
     points: item[metricKey].filter((point) => Number.isFinite(point.value)),
   })).filter((line) => line.points.length);
   const allPoints = lines.flatMap((line) => line.points);
 
-  svg.insertAdjacentHTML("beforeend", `<rect x="0" y="0" width="${width}" height="${height}" rx="14" fill="rgba(255,255,255,0.52)"></rect>`);
+  svg.insertAdjacentHTML("beforeend", `<rect x="0" y="0" width="${width}" height="${height}" rx="14" fill="#0b1814"></rect>`);
 
   if (!allPoints.length) {
-    svg.insertAdjacentHTML("beforeend", `<text x="${width / 2}" y="${height / 2}" text-anchor="middle" fill="#667085" font-size="13">Need more months</text>`);
+    svg.insertAdjacentHTML("beforeend", `<text x="${width / 2}" y="${height / 2}" text-anchor="middle" fill="#91a49d" font-size="13">Need more months</text>`);
     return;
   }
 
@@ -1029,19 +801,19 @@ function renderMiniChart(svgId, diagnostics, config) {
   buildTicks(min, max, 4).forEach((tick) => {
     const yy = y(tick);
     svg.insertAdjacentHTML("beforeend", `
-      <line x1="${pad.left}" y1="${yy}" x2="${width - pad.right}" y2="${yy}" stroke="rgba(107,114,128,0.14)" />
-      <text x="${pad.left - 10}" y="${yy + 4}" text-anchor="end" fill="#667085" font-size="10">${formatTick(tick)}</text>
+      <line x1="${pad.left}" y1="${yy}" x2="${width - pad.right}" y2="${yy}" stroke="rgba(154,187,175,0.12)" />
+      <text x="${pad.left - 10}" y="${yy + 4}" text-anchor="end" fill="#91a49d" font-size="10">${formatTick(tick)}</text>
     `);
   });
 
   const zeroY = y(0);
-  svg.insertAdjacentHTML("beforeend", `<line x1="${pad.left}" y1="${zeroY}" x2="${width - pad.right}" y2="${zeroY}" stroke="rgba(24,33,43,0.28)" stroke-dasharray="4 5" />`);
+  svg.insertAdjacentHTML("beforeend", `<line x1="${pad.left}" y1="${zeroY}" x2="${width - pad.right}" y2="${zeroY}" stroke="rgba(154,187,175,0.35)" stroke-dasharray="4 5" />`);
 
   const dateLabels = [dates[0], dates[Math.floor((dates.length - 1) / 2)], dates[dates.length - 1]].filter(Boolean);
   [...new Set(dateLabels)].forEach((date) => {
     const xx = x(date);
     const anchor = date === dates[0] ? "start" : (date === dates[dates.length - 1] ? "end" : "middle");
-    svg.insertAdjacentHTML("beforeend", `<text x="${xx}" y="${height - 12}" text-anchor="${anchor}" fill="#667085" font-size="10">${formatMonth(date)}</text>`);
+    svg.insertAdjacentHTML("beforeend", `<text x="${xx}" y="${height - 12}" text-anchor="${anchor}" fill="#91a49d" font-size="10">${formatMonth(date)}</text>`);
   });
 
   lines.forEach((line) => {
@@ -1074,8 +846,8 @@ function renderMiniChart(svgId, diagnostics, config) {
     }).filter((row) => Number.isFinite(row.value));
 
     hoverLayer.innerHTML = `
-      <line x1="${xx}" y1="${pad.top}" x2="${xx}" y2="${height - pad.bottom}" stroke="rgba(15,23,42,0.24)" stroke-dasharray="4 5" />
-      ${rows.map((row) => `<circle cx="${xx}" cy="${y(row.value)}" r="4.5" fill="white" stroke="${row.color}" stroke-width="2.5" />`).join("")}
+      <line x1="${xx}" y1="${pad.top}" x2="${xx}" y2="${height - pad.bottom}" stroke="rgba(154,187,175,0.35)" stroke-dasharray="4 5" />
+      ${rows.map((row) => `<circle cx="${xx}" cy="${y(row.value)}" r="4.5" fill="#0b1814" stroke="${row.color}" stroke-width="2.5" />`).join("")}
     `;
     renderDiagnosticTooltip(svg, pointer, metricLabel, date, rows, formatValue);
   };
@@ -1165,9 +937,11 @@ function renderChart(display) {
   svg.innerHTML = "";
   hideTooltip();
 
-  CHART_DIMS.width = stage.clientWidth < 640 ? Math.max(360, stage.clientWidth) : 1100;
-  CHART_DIMS.height = stage.clientWidth < 640 ? 320 : 520;
-  CHART_DIMS.pad.left = stage.clientWidth < 640 ? 54 : 78;
+  CHART_DIMS.width = Math.max(320, stage.clientWidth);
+  CHART_DIMS.height = stage.clientWidth < 640 ? 320 : 380;
+  CHART_DIMS.pad.left = 52;
+  CHART_DIMS.pad.right = 32;
+  CHART_DIMS.pad.bottom = 40;
   const { width, height, pad } = CHART_DIMS;
   svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
   svg.style.aspectRatio = `${width} / ${height}`;
@@ -1191,6 +965,9 @@ function renderChart(display) {
     min -= 1;
     max += 1;
   }
+  const ticks = chartTicks(min, max);
+  min = ticks[0];
+  max = ticks.at(-1);
   const span = max - min;
   const chartWidth = width - pad.left - pad.right;
   const chartHeight = height - pad.top - pad.bottom;
@@ -1199,14 +976,13 @@ function renderChart(display) {
   const x = (index) => pad.left + (index / Math.max(dates.length - 1, 1)) * chartWidth;
   const y = (value) => pad.top + (1 - ((value - min) / span)) * chartHeight;
 
-  svg.insertAdjacentHTML("beforeend", `<rect x="${pad.left}" y="${pad.top}" width="${chartWidth}" height="${chartHeight}" rx="20" fill="rgba(255,255,255,0.55)"></rect>`);
+  svg.insertAdjacentHTML("beforeend", `<rect x="${pad.left}" y="${pad.top}" width="${chartWidth}" height="${chartHeight}" rx="20" fill="#0b1814"></rect>`);
 
-  const ticks = buildTicks(min, max, 5);
   ticks.forEach((tick) => {
     const yy = y(tick);
     svg.insertAdjacentHTML("beforeend", `
-      <line x1="${pad.left}" y1="${yy}" x2="${width - pad.right}" y2="${yy}" stroke="rgba(107,114,128,0.18)" />
-      <text x="${pad.left - 14}" y="${yy + 4}" text-anchor="end" fill="#6b7280" font-size="12">${formatAxis(tick)}</text>
+      <line x1="${pad.left}" y1="${yy}" x2="${width - pad.right}" y2="${yy}" stroke="rgba(154,187,175,0.12)" />
+      <text x="${pad.left - 14}" y="${yy + 4}" text-anchor="end" fill="#91a49d" font-size="12">${formatAxis(tick)}</text>
     `);
   });
 
@@ -1214,7 +990,7 @@ function renderChart(display) {
   if (referenceValue != null && referenceValue >= min && referenceValue <= max) {
     const yy = y(referenceValue);
     svg.insertAdjacentHTML("beforeend", `
-      <line x1="${pad.left}" y1="${yy}" x2="${width - pad.right}" y2="${yy}" stroke="rgba(15,23,42,0.28)" stroke-dasharray="5 5" />
+      <line x1="${pad.left}" y1="${yy}" x2="${width - pad.right}" y2="${yy}" stroke="rgba(154,187,175,0.35)" stroke-dasharray="5 5" />
     `);
   }
 
@@ -1232,29 +1008,28 @@ function renderChart(display) {
     const xx = x(index);
     const anchor = index === 0 ? "start" : (index === dates.length - 1 ? "end" : "middle");
     svg.insertAdjacentHTML("beforeend", `
-      <line x1="${xx}" y1="${height - pad.bottom + 6}" x2="${xx}" y2="${height - pad.bottom + 12}" stroke="rgba(107,114,128,0.5)" />
-      <text x="${xx}" y="${height - 18}" text-anchor="${anchor}" fill="#6b7280" font-size="12">${formatMonth(date)}</text>
+      <line x1="${xx}" y1="${height - pad.bottom + 6}" x2="${xx}" y2="${height - pad.bottom + 12}" stroke="rgba(154,187,175,0.25)" />
+      <text x="${xx}" y="${height - 18}" text-anchor="${anchor}" fill="#91a49d" font-size="12">${formatMonth(date)}</text>
     `);
   });
 
   displaySeries.forEach((series, index) => {
-    const color = COLORS[index % COLORS.length];
+    const color = seriesColor(series.id);
     const points = series.values.map((point, pointIndex) => `${x(pointIndex)},${y(point.value)}`).join(" ");
-    const areaPoints = `${pad.left},${height - pad.bottom} ${points} ${x(series.values.length - 1)},${height - pad.bottom}`;
     const lastPoint = series.values[series.values.length - 1];
     const hoverPoint = series.values[hoverIndex];
 
     svg.insertAdjacentHTML("beforeend", `
-      <polygon fill="${color}" opacity="0.06" points="${areaPoints}"></polygon>
-      <polyline fill="none" stroke="${color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" points="${points}" />
-      <circle cx="${x(series.values.length - 1)}" cy="${y(lastPoint.value)}" r="4.5" fill="${color}" />
-      <circle cx="${x(hoverIndex)}" cy="${y(hoverPoint.value)}" r="5.5" fill="white" stroke="${color}" stroke-width="3" />
+      <g class="series-line" data-series="${series.id}">
+      <polyline fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" points="${points}" />
+      <circle cx="${x(series.values.length - 1)}" cy="${y(lastPoint.value)}" r="3" fill="${color}" />
+      <circle cx="${x(hoverIndex)}" cy="${y(hoverPoint.value)}" r="${state.hoverIndex == null ? 0 : 4}" fill="#0b1814" stroke="${color}" stroke-width="2" /></g>
     `);
   });
 
   const hoverX = x(hoverIndex);
   svg.insertAdjacentHTML("beforeend", `
-    <line x1="${hoverX}" y1="${pad.top}" x2="${hoverX}" y2="${height - pad.bottom}" stroke="rgba(15,23,42,0.26)" stroke-dasharray="4 5" />
+    <line opacity="${state.hoverIndex == null ? 0 : 1}" x1="${hoverX}" y1="${pad.top}" x2="${hoverX}" y2="${height - pad.bottom}" stroke="rgba(154,187,175,0.35)" stroke-dasharray="4 5" />
     <rect id="chartOverlay" x="${pad.left}" y="${pad.top}" width="${chartWidth}" height="${chartHeight}" fill="transparent" style="cursor:crosshair"></rect>
   `);
 
@@ -1268,6 +1043,7 @@ function renderChart(display) {
   overlay.addEventListener("touchmove", (event) => onChartHover(event.touches[0], chartWidth, x), { passive: true });
 
   if (state.hoverIndex != null) renderTooltip(display, hoverIndex, hoverX);
+  highlightSeries(state.highlightedSeries);
 }
 
 function onChartHover(event, chartWidth, xScale) {
@@ -1299,7 +1075,7 @@ function renderTooltip(display, index, xPos) {
     const deltaPct = ((point.value / start) - 1) * 100;
     return `
       <div class="tooltip-row">
-        <span class="tooltip-series"><span class="legend-swatch" style="background:${COLORS[seriesIndex % COLORS.length]}"></span>${series.meta.short_name}</span>
+        <span class="tooltip-series"><span class="legend-swatch" style="background:${seriesColor(series.id)}"></span>${series.meta.short_name}</span>
         <span class="tooltip-value">${formatTooltipValue(point.value, series.rawUnit)}</span>
         <span class="${deltaPct >= 0 ? "positive" : "negative"}">${deltaPct >= 0 ? "+" : ""}${deltaPct.toFixed(1)}%</span>
       </div>
@@ -1314,7 +1090,7 @@ function renderTooltip(display, index, xPos) {
 
   const stageWidth = stage.clientWidth;
   const left = (xPos / CHART_DIMS.width) * stageWidth;
-  tooltip.style.left = `${Math.min(Math.max(left, 110), stageWidth - 110)}px`;
+  tooltip.style.left = `${Math.max(8, Math.min(left + 18, stageWidth - tooltip.offsetWidth - 8))}px`;
   tooltip.style.top = "16px";
 }
 
@@ -1344,6 +1120,15 @@ function getEmptyReason(reason) {
   };
 }
 
+function chartTicks(min, max) {
+  const rawStep = (max - min) / 5;
+  const magnitude = 10 ** Math.floor(Math.log10(rawStep));
+  const step = [1, 2, 2.5, 5, 10].find((value) => value * magnitude >= rawStep) * magnitude;
+  const first = Math.floor(min / step);
+  const last = Math.ceil(max / step);
+  return Array.from({ length: last - first + 1 }, (_, index) => Number(((first + index) * step).toPrecision(12)));
+}
+
 function buildTicks(min, max, count) {
   const ticks = [];
   for (let i = 0; i < count; i++) {
@@ -1354,8 +1139,8 @@ function buildTicks(min, max, count) {
 
 function formatAxis(value) {
   if (Math.abs(value) >= 1000) return value.toLocaleString(undefined, { maximumFractionDigits: 0 });
-  if (Math.abs(value) >= 100) return value.toFixed(1);
-  return value.toFixed(2);
+  if (Math.abs(value) >= 1) return Number(value.toFixed(2)).toString();
+  return Number(value.toPrecision(3)).toString();
 }
 
 function formatSummaryValue(value, unit) {
@@ -1396,13 +1181,12 @@ async function init() {
   state.endDate = state.allDates[state.allDates.length - 1];
 
   const count = state.metadata.filter((row) => row.category === "stock").length;
-  document.getElementById("datasetBadge").textContent = `${count} stocks · ${state.metadata.length} things to compare`;
-  document.getElementById("dataCoverage").textContent = `Monthly history · ${formatMonth(state.allDates[0])} – ${formatMonth(state.allDates.at(-1))}`;
-  document.getElementById("investmentView").addEventListener("change", () => renderInvestment(state.lastDisplay));
+  document.getElementById("datasetBadge").innerHTML = `<strong>${count}</strong> stocks <span>·</span> <strong>${state.metadata.length - count}</strong> market references <span>·</span> Since ${state.allDates[0].slice(0, 4)}`;
+  document.getElementById("dataCoverage").textContent = `Monthly · Through ${formatMonth(state.allDates.at(-1))}`;
+  document.getElementById("sourceCoverage").textContent = `Monthly history from ${formatMonth(state.allDates[0])} through ${formatMonth(state.allDates.at(-1))}, where available. Every comparison uses the dates shared by all selected assets.`;
   window.addEventListener("resize", () => renderChart(state.lastDisplay));
   setupControls();
   populateDateSelects();
-  document.getElementById("modeSelect").value = state.mode;
   document.getElementById("benchmarkSelect").value = state.benchmark;
   applyTimeframe("3Y");
 }
