@@ -23,6 +23,41 @@ const {pathToFileURL} = require('node:url');
    assert.equal(await page.locator('#comparisonResults .comparison-row').count(),count);
    assert.equal(await page.locator(`[data-preset="${preset}"]`).getAttribute('aria-pressed'),'true');
   }
+  await page.click('[data-collection="world"]');
+  assert.equal(await page.locator('.world-market').count(),9);
+  for(const [preset,count] of [['global',4],['neighbours',3],['asia',4],['us',4]]) {
+   await page.click(`[data-preset="${preset}"]`);
+   assert.equal(await page.locator('#chart polyline').count(),count,preset);
+  }
+  await page.click('[data-preset="global"]');
+  await page.selectOption('#benchmarkSelect','USDIDR');
+  assert.match(await page.locator('#worldContext').innerText(),/US Dollar/);
+  await page.click('[data-market="KLCI"]');
+  assert.equal(await page.locator('#chart [data-series="KLCI"]').count(),1);
+  await page.click('[data-market="KLCI"]');
+  assert.equal(await page.locator('#chart [data-series="KLCI"]').count(),0);
+  await page.selectOption('#benchmarkSelect','AUDIDR');
+  assert.equal(await page.locator('#chart polyline').count(),4);
+  await page.screenshot({path:'/tmp/id-market-world.png',fullPage:true});
+  await page.click('[data-collection="themes"]');
+  assert.equal(await page.locator('#worldOverview').isVisible(),false);
+  for(const [preset,count] of [['globalbanks',3],['tech',4],['digital',3],['resources',4],['automotive',3]]) {
+   await page.click(`[data-preset="${preset}"]`);
+   assert.equal(await page.locator('#chart polyline').count(),count,preset);
+  }
+  await page.click('[data-preset="globalbanks"]');
+  await page.click('[data-mode="price"]');
+  assert.equal(await page.locator('#chart polyline').count(),3,'foreign stocks share converted price units');
+  await page.click('#stockToggleSummary');
+  await page.selectOption('#assetCountry','Australia');
+  assert.equal(await page.locator('#stockToggleList input').count(),3);
+  assert.match(await page.locator('#stockToggleList').innerText(),/ASX.*AUD/s);
+  await page.selectOption('#assetCountry','all');
+  await page.click('[data-category="crypto"]');
+  assert.equal(await page.locator('#stockToggleList input').count(),2);
+  await page.keyboard.press('Escape');
+  await page.click('#resetSelections');
+  assert.equal(await page.locator('[data-collection="indonesia"]').getAttribute('aria-pressed'),'true');
   await page.click('[data-preset="banks"]');
   assert.equal(await page.locator('#chart [data-series="BBCA"] polyline').getAttribute('stroke'),originalColor,'stable asset colors');
   await page.locator('.comparison-row[data-series="BBCA"]').hover();
@@ -106,6 +141,6 @@ const {pathToFileURL} = require('node:url');
   await page.waitForSelector('#chart polyline');
   assert.equal(await page.locator('#chart polyline').count(),4);
   assert.deepEqual(errors,[]);
-  console.log('PASS: desktop layout, presets, stable colors, linked highlights, results toggle, search/category filters, removal, clear/recovery, custom dates, benchmark/price switching, chart hover, diagnostics, narrow fallback, and file:// opening.');
+  console.log('PASS: global themes, world overview, country filters, currency switching, desktop layout, presets, stable colors, linked highlights, results toggle, search/category filters, removal, clear/recovery, custom dates, benchmark/price switching, chart hover, diagnostics, narrow fallback, and file:// opening.');
  } finally { await browser.close(); }
 })().catch(e=>{console.error(e);process.exitCode=1;});
