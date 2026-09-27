@@ -6,6 +6,8 @@ Live site: https://adhni.github.io/id-market/
 
 ## Explore
 
+- **EN / ID** in the header switches the interface between English and Indonesian, including dates, numbers, asset search, and chart details. Your choice is remembered locally; the first visit follows your browser language (English fallback). Switching keeps the active comparison intact.
+
 - **62 stocks** (50 Indonesian + 12 international), **10 indexes**, **8 currencies**, **6 commodities**, and **Bitcoin + Ethereum**: 88 selectable lines.
 - Explore **Indonesia**, **World**, and **Themes** in the same workspace. World shows nine clickable index snapshots, with mini charts and period changes in the chosen measuring currency.
 - New markets include the US, Australia, Singapore, Malaysia, Japan, Hong Kong, and India. TSMC uses its USD-denominated US ADR, filed under Taiwan.
@@ -50,6 +52,7 @@ Every non-IDR asset is converted from its recorded quote currency into IDR befor
 
 ```sh
 node --check app.js
+node --check i18n.js
 node --test tests/market.test.cjs
 ```
 
@@ -57,6 +60,9 @@ Browser smoke checks require an installed Playwright package and Google Chrome, 
 
 ```sh
 node tests/browser-smoke.cjs
+node tests/language-smoke.cjs
 ```
 
 If Playwright is installed elsewhere, set `NODE_PATH` to that installation's `node_modules` directory. Browser checks cover the World overview, cross-market themes, country filters, currency switching, desktop layout, presets, stable colors and linked highlights, category filters and search, custom dates, benchmarks, price mode, reset, empty selections, the money illustration, a basic narrow-screen fallback, and direct-file opening. Preview screenshots are written to the system temporary directory.
+
+Translations live in `i18n.js`, keyed by English copy. Static page text is captured once at startup; dynamic interface text uses `t()`. Market data, ticker IDs, and calculations stay independent of the selected language.

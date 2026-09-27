@@ -7,7 +7,7 @@ const root = path.resolve(__dirname, '..');
 const source = fs.readFileSync(path.join(root, 'app.js'), 'utf8').split('\ninit().catch')[0];
 function model() {
   const context = vm.createContext({console});
-  vm.runInContext(source, context);
+  vm.runInContext(fs.readFileSync(path.join(root, 'i18n.js'), 'utf8') + '\n' + source, context);
   for (const name of ['series', 'metadata']) context[name + 'CSV'] = fs.readFileSync(path.join(root, 'data', name + '.csv'), 'utf8');
   vm.runInContext(`
     state.rawSeries = parseCSV(seriesCSV); state.metadata = parseCSV(metadataCSV);

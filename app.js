@@ -149,13 +149,13 @@ function renderCollections() {
     button.setAttribute("aria-pressed", active);
   });
   document.getElementById("presetButtons").innerHTML = COLLECTIONS[state.collection].map(([id, label]) =>
-    `<button type="button" data-preset="${id}" aria-pressed="${state.activePreset === id}" class="${state.activePreset === id ? "active" : ""}">${label}</button>`).join("");
+    `<button type="button" data-preset="${id}" aria-pressed="${state.activePreset === id}" class="${state.activePreset === id ? "active" : ""}">${t(label)}</button>`).join("");
   document.getElementById("worldOverview").hidden = state.collection !== "world";
 }
 
 function renderWorldOverview() {
   if (state.collection !== "world") return;
-  document.getElementById("worldContext").textContent = `${formatMonth(state.startDate)} — ${formatMonth(state.endDate)} · Measured in ${getBenchmarkLabel()}`;
+  document.getElementById("worldContext").textContent = t("{0} — {1} · Measured in {2}", formatMonth(state.startDate), formatMonth(state.endDate), getBenchmarkLabel());
   const host = document.getElementById("worldMarkets");
   host.innerHTML = "";
   for (const id of WORLD_MARKETS) {
@@ -173,9 +173,9 @@ function renderWorldOverview() {
     button.className = `world-market ${selected ? "selected" : ""}`;
     button.dataset.market = id;
     button.setAttribute("aria-pressed", selected);
-    button.setAttribute("aria-label", `${selected ? "Remove" : "Add"} ${meta.short_name}`);
-    button.title = series ? `${formatMonth(display.dates[0])} — ${formatMonth(display.dates.at(-1))}` : "No history in this period";
-    button.innerHTML = `<span class="world-country">${escapeHTML(meta.country)}</span><strong>${escapeHTML(meta.short_name)}</strong><svg class="world-sparkline" viewBox="0 0 72 26" aria-hidden="true"><polyline points="${points}" fill="none" stroke="${seriesColor(id)}" stroke-width="1.5" /></svg><span class="world-move ${valueTone(pct)}">${pct == null ? "—" : `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`}</span><span class="world-action" aria-hidden="true">${selected ? "✓" : "+"}</span>`;
+    button.setAttribute("aria-label", `${selected ? t("Remove") : t("Add")} ${t(meta.short_name)}`);
+    button.title = series ? `${formatMonth(display.dates[0])} — ${formatMonth(display.dates.at(-1))}` : t("No history in this period");
+    button.innerHTML = `<span class="world-country">${escapeHTML(t(meta.country))}</span><strong>${escapeHTML(meta.short_name)}</strong><svg class="world-sparkline" viewBox="0 0 72 26" aria-hidden="true"><polyline points="${points}" fill="none" stroke="${seriesColor(id)}" stroke-width="1.5" /></svg><span class="world-move ${valueTone(pct)}">${pct == null ? "—" : `${pct >= 0 ? "+" : ""}${decimal(pct, 1)}%`}</span><span class="world-action" aria-hidden="true">${selected ? "✓" : "+"}</span>`;
     button.addEventListener("click", () => {
       if (state.selectedSeries.has(id)) state.selectedSeries.delete(id);
       else state.selectedSeries.add(id);
@@ -269,7 +269,7 @@ function setupControls() {
   renderCollections();
   const countries = [...new Set(state.metadata.map((row) => row.country))].filter(Boolean).sort();
   const countrySelect = document.getElementById("assetCountry");
-  countries.forEach((country) => countrySelect.add(new Option(country, country)));
+  countries.forEach((country) => countrySelect.add(new Option(t(country), country)));
   countrySelect.addEventListener("change", () => { state.assetCountry = countrySelect.value; renderStockToggleDropdown(); });
   document.querySelectorAll("[data-collection]").forEach((button) => {
     button.addEventListener("click", () => { state.collection = button.dataset.collection; renderCollections(); render(); });
@@ -407,7 +407,7 @@ function convertUsdCommodityToKilograms(idrValue, date, referenceMaps, seriesId)
 
 function getBenchmarkLabel(id = state.benchmark) {
   const benchmarkDef = getBenchmarkDef(id);
-  if (benchmarkDef) return benchmarkDef.label;
+  if (benchmarkDef) return t(benchmarkDef.label);
   const stockMeta = state.metadataMap.get(id);
   if (stockMeta) return stockMeta.short_name;
   return stockMeta?.short_name || id;
@@ -425,9 +425,9 @@ function getPriceReferenceSeriesIds(benchmark = state.benchmark) {
 function getPriceDisplayUnit(benchmark = state.benchmark) {
   if (isStockBenchmark(benchmark)) {
     const shortName = state.metadataMap.get(benchmark)?.short_name || benchmark;
-    return `shares ${shortName}`;
+    return t("shares {0}", shortName);
   }
-  return getBenchmarkDef(benchmark)?.displayUnit || "USD";
+  return t(getBenchmarkDef(benchmark)?.displayUnit || "USD");
 }
 
 function convertPriceValue(idrValue, date, referenceMaps, benchmark = state.benchmark) {
@@ -446,7 +446,7 @@ function renderBenchmarkOptions() {
   select.innerHTML = "";
 
   const macroGroup = document.createElement("optgroup");
-  macroGroup.label = "Macro references";
+  macroGroup.label = t("Macro references");
   const macroIds = state.mode === "relative" ? RELATIVE_BENCHMARK_IDS : PRICE_GROWTH_BENCHMARK_IDS;
   macroIds.forEach((id) => {
     const shouldSkip = id !== "IDR" && !state.metadataMap.get(id);
@@ -456,7 +456,7 @@ function renderBenchmarkOptions() {
   select.appendChild(macroGroup);
 
   const stockGroup = document.createElement("optgroup");
-  stockGroup.label = "Stocks & market indexes";
+  stockGroup.label = t("Stocks & market indexes");
   const stockRows = [...state.metadata]
     .filter((row) => ["stock", "index"].includes(row.category))
     .sort((a, b) => a.short_name.localeCompare(b.short_name));
@@ -473,7 +473,7 @@ function renderBenchmarkOptions() {
 
 function renderStockToggleDropdown() {
   const host = document.getElementById("stockToggleList");
-  document.getElementById("stockToggleSummary").innerHTML = `<span aria-hidden="true">＋</span> Add assets <span class="asset-count">${state.selectedSeries.size}</span>`;
+  document.getElementById("stockToggleSummary").innerHTML = `<span aria-hidden="true">＋</span> ${t("Add assets")} <span class="asset-count">${state.selectedSeries.size}</span>`;
   const search = document.getElementById("stockToggleSearch").value.trim().toLowerCase();
   document.querySelectorAll("#assetFilters button").forEach((button) => {
     const active = state.assetCategory === button.dataset.category;
@@ -482,7 +482,7 @@ function renderStockToggleDropdown() {
   });
   const rows = state.metadata.filter((row) => (state.assetCategory === "all" || row.category === state.assetCategory) &&
     (state.assetCountry === "all" || row.country === state.assetCountry) &&
-    `${row.series_id} ${row.display_name} ${row.short_name} ${row.sector} ${row.category} ${row.country} ${row.exchange} ${row.currency}`.toLowerCase().includes(search)
+    `${t(row.short_name)} ${t(row.display_name)} ${t(row.country)} ${row.series_id} ${row.display_name} ${row.short_name} ${row.sector} ${row.category} ${row.country} ${row.exchange} ${row.currency}`.toLowerCase().includes(search)
   ).sort((a, b) => Number(state.selectedSeries.has(b.series_id)) - Number(state.selectedSeries.has(a.series_id)) || a.short_name.localeCompare(b.short_name));
   host.innerHTML = "";
   for (const row of rows) {
@@ -490,7 +490,7 @@ function renderStockToggleDropdown() {
     label.className = "stock-toggle-item";
     label.innerHTML = `<input type="checkbox" value="${escapeHTML(row.series_id)}" ${state.selectedSeries.has(row.series_id) ? "checked" : ""} />
       <span class="picker-swatch" style="background:${seriesColor(row.series_id)}"></span>
-      <span class="stock-toggle-copy"><strong>${escapeHTML(row.short_name)}</strong><span>${escapeHTML(row.display_name)} · ${escapeHTML(row.exchange)} · ${escapeHTML(row.currency)}</span></span><span class="asset-category">${escapeHTML(row.category === "fx" ? "FX" : row.category)}</span>`;
+      <span class="stock-toggle-copy"><strong>${escapeHTML(t(row.short_name))}</strong><span>${escapeHTML(t(row.display_name))} · ${escapeHTML(row.exchange)} · ${escapeHTML(row.currency)}</span></span><span class="asset-category">${escapeHTML(t(row.category === "fx" ? "FX" : row.category))}</span>`;
     label.querySelector("input").addEventListener("change", (event) => {
       if (event.target.checked) state.selectedSeries.add(row.series_id);
       else state.selectedSeries.delete(row.series_id);
@@ -503,8 +503,8 @@ function renderStockToggleDropdown() {
     });
     host.appendChild(label);
   }
-  if (!rows.length) host.innerHTML = '<p class="picker-empty">No matches. Try another name or category.</p>';
-  document.getElementById("selectionAdvice").textContent = state.selectedSeries.size > 5 ? "Try fewer assets for an easier comparison." : "Compare 2–5 assets for a clearer view.";
+  if (!rows.length) host.innerHTML = `<p class="picker-empty">${t("No matches. Try another name or category.")}</p>`;
+  document.getElementById("selectionAdvice").textContent = state.selectedSeries.size > 5 ? t("Try fewer assets for an easier comparison.") : t("Compare 2–5 assets for a clearer view.");
 }
 
 function populateDateSelects() {
@@ -555,9 +555,7 @@ function clampDateRange() {
 }
 
 function formatMonth(date) {
-  const [year, month] = date.split("-");
-  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  return `${monthNames[Number(month) - 1]} ${year}`;
+  return new Intl.DateTimeFormat(locale(), {month: "short", year: "numeric", timeZone: "UTC"}).format(new Date(date + "T00:00:00Z"));
 }
 
 function getSeriesWithinRange(seriesId) {
@@ -640,7 +638,7 @@ function updateControlVisibility() {
     benchmarkSelect.value = state.benchmark;
   }
   if (benchmarkLabel) {
-    benchmarkLabel.textContent = isRelative ? "Compare against" : "Measure in";
+    benchmarkLabel.textContent = isRelative ? t("Compare against") : t("Measure in");
   }
 
   document.querySelectorAll("#modeButtons .mode-button").forEach((button) => {
@@ -674,18 +672,18 @@ function updateCopy() {
   const label = getBenchmarkLabel();
   const price = state.mode === "price";
   const relative = state.mode === "relative";
-  document.getElementById("chartTitle").textContent = price ? "Price over time." : relative ? `Against ${label}.` : "A common starting point.";
-  document.getElementById("chartSubtitle").textContent = price ? `Monthly prices in ${label}.` : relative ? "Above 100 = ahead of the benchmark." : "All assets start at 100. A value of 120 means a 20% increase.";
-  document.getElementById("chartBasis").textContent = `${price ? "PRICE" : "BASE 100"} / ${getBenchmarkDef()?.displayUnit || state.metadataMap.get(state.benchmark)?.short_name || state.benchmark}`;
+  document.getElementById("chartTitle").textContent = price ? t("Price over time.") : relative ? t("Against {0}.", label) : t("A common starting point.");
+  document.getElementById("chartSubtitle").textContent = price ? t("Monthly prices in {0}.", label) : relative ? t("Above 100 = ahead of the benchmark.") : t("All assets start at 100. A value of 120 means a 20% increase.");
+  document.getElementById("chartBasis").textContent = `${price ? t("PRICE") : t("BASE 100")} / ${t(getBenchmarkDef()?.displayUnit || "") || state.metadataMap.get(state.benchmark)?.short_name || state.benchmark}`;
 }
 
 function updateSnapshot(display) {
   const dates = display.dates;
-  const range = dates.length ? `${formatMonth(dates[0])} — ${formatMonth(dates.at(-1))}` : "No shared dates";
+  const range = dates.length ? `${formatMonth(dates[0])} — ${formatMonth(dates.at(-1))}` : t("No shared dates");
   document.getElementById("chartRangeLabel").textContent = range;
-  document.getElementById("rangeWindowLabel").textContent = `${formatMonth(state.startDate)} to ${formatMonth(state.endDate)}`;
+  document.getElementById("rangeWindowLabel").textContent = t("{0} to {1}", formatMonth(state.startDate), formatMonth(state.endDate));
   const adjusted = dates.length && (dates[0] !== state.startDate || dates.at(-1) !== state.endDate);
-  document.getElementById("sharedWindowNote").textContent = adjusted ? `Adjusted to the history available for every asset: ${range}.` : "";
+  document.getElementById("sharedWindowNote").textContent = adjusted ? t("Adjusted to the history available for every asset: {0}.", range) : "";
   document.getElementById("selectedCount").textContent = String(display.series.length).padStart(2, "0");
 }
 
@@ -716,7 +714,7 @@ function renderLegend(displaySeries) {
     item.type = "button";
     item.className = "legend-item";
     item.dataset.series = series.id;
-    item.innerHTML = `<span class="legend-swatch" style="background:${seriesColor(series.id)}"></span>${escapeHTML(series.meta.short_name)}`;
+    item.innerHTML = `<span class="legend-swatch" style="background:${seriesColor(series.id)}"></span>${escapeHTML(t(series.meta.short_name))}`;
     bindHighlight(item, series.id);
     legend.appendChild(item);
   }
@@ -728,35 +726,35 @@ function renderSummary(displaySeries) {
   if (!moneyAvailable) state.resultMode = "percent";
   const money = state.resultMode === "money";
   document.querySelector('[data-result="money"]').disabled = !moneyAvailable;
-  document.querySelector('[data-result="money"]').title = moneyAvailable ? "Value following each asset from Rp1 million" : "Available in Growth measured in Rupiah";
+  document.querySelector('[data-result="money"]').title = moneyAvailable ? t("Value following each asset from Rp1 million") : t("Available in Growth measured in Rupiah");
   document.querySelectorAll("#resultMode button").forEach((button) => {
     const active = button.dataset.result === state.resultMode;
     button.classList.toggle("active", active);
     button.setAttribute("aria-pressed", active);
   });
-  document.getElementById("resultContext").textContent = money ? "If Rp1 million followed each asset" : `Change in ${getBenchmarkLabel()} terms`;
-  document.getElementById("comparisonNote").textContent = money ? "An illustration of price movement, excluding dividends and costs. Indexes and commodities are proxies." : "Price movement only. Dividends and costs excluded.";
+  document.getElementById("resultContext").textContent = money ? t("If Rp1 million followed each asset") : t("Change in {0} terms", getBenchmarkLabel());
+  document.getElementById("comparisonNote").textContent = money ? t("An illustration of price movement, excluding dividends and costs. Indexes and commodities are proxies.") : t("Price movement only. Dividends and costs excluded.");
   host.innerHTML = "";
   if (!displaySeries.length) {
-    host.innerHTML = '<p class="results-empty">Your results will appear here once there is a comparison to show.</p>';
+    host.innerHTML = `<p class="results-empty">${t("Your results will appear here once there is a comparison to show.")}</p>`;
     return;
   }
   for (const series of displaySeries) {
     const values = series.values.map((point) => point.value);
     const ratio = values.at(-1) / values[0];
     const pct = (ratio - 1) * 100;
-    const formatted = money ? `Rp${Math.round(1000000 * ratio).toLocaleString("id-ID")}` : `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`;
+    const formatted = money ? `Rp${Math.round(1000000 * ratio).toLocaleString(locale())}` : `${pct >= 0 ? "+" : ""}${decimal(pct, 1)}%`;
     const min = Math.min(...values), span = Math.max(...values) - min || 1;
     const points = values.map((value, index) => `${index / Math.max(values.length - 1, 1) * 70},${22 - (value - min) / span * 20}`).join(" ");
     const row = document.createElement("div");
     row.className = "comparison-row";
     row.dataset.series = series.id;
-    row.innerHTML = `<button class="asset-result" type="button" aria-label="Highlight ${escapeHTML(series.meta.short_name)}: ${formatted}">
-      <span class="result-name"><span class="legend-swatch" style="background:${seriesColor(series.id)}"></span><strong>${escapeHTML(series.meta.short_name)}</strong></span>
+    row.innerHTML = `<button class="asset-result" type="button" aria-label="${t("Highlight")} ${escapeHTML(t(series.meta.short_name))}: ${formatted}">
+      <span class="result-name"><span class="legend-swatch" style="background:${seriesColor(series.id)}"></span><strong>${escapeHTML(t(series.meta.short_name))}</strong></span>
       <strong class="result-value ${money ? "" : valueTone(pct)}">${formatted}</strong>
-      <span class="result-company">${escapeHTML(series.meta.display_name)} · ${escapeHTML(series.meta.currency || "IDR")}</span>
+      <span class="result-company">${escapeHTML(t(series.meta.display_name))} · ${escapeHTML(series.meta.currency || "IDR")}</span>
       <svg class="sparkline" viewBox="0 0 72 24" aria-hidden="true"><polyline points="${points}" fill="none" stroke="${seriesColor(series.id)}" stroke-width="1.4" /></svg>
-      </button><button class="remove-asset" type="button" aria-label="Remove ${escapeHTML(series.meta.short_name)}">×</button>`;
+      </button><button class="remove-asset" type="button" aria-label="${t("Remove")} ${escapeHTML(t(series.meta.short_name))}">×</button>`;
     row.querySelector(".remove-asset").addEventListener("click", () => {
       state.selectedSeries.delete(series.id);
       state.activePreset = null;
@@ -781,13 +779,13 @@ function renderDiagnostics(display) {
 
   renderMiniChart("changeChart", diagnostics, {
     metricKey: "changes",
-    metricLabel: "Monthly change",
+    metricLabel: t("Monthly change"),
     formatTick: formatMiniAxis,
     formatValue: (value, item) => formatSignedDiagnostic(value, getDeltaUnit(item), false),
   });
   renderMiniChart("rateChart", diagnostics, {
     metricKey: "rates",
-    metricLabel: "Rate of change",
+    metricLabel: t("Rate of change"),
     formatTick: (value) => `${formatMiniAxis(value)}%`,
     formatValue: (value) => formatSignedDiagnostic(value, "%", true),
   });
@@ -796,7 +794,7 @@ function renderDiagnostics(display) {
   if (!diagnostics.length) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="4" class="muted">Select at least one series with two visible months to see change diagnostics.</td>
+        <td colspan="4" class="muted">${t("Select at least one series with two visible months to see change diagnostics.")}</td>
       </tr>
     `;
     return;
@@ -804,10 +802,10 @@ function renderDiagnostics(display) {
 
   diagnostics.forEach((item) => {
     const latest = item.latest;
-    const deltaUnit = (state.mode === "growth" || state.mode === "relative") ? "pts" : item.rawUnit;
+    const deltaUnit = (state.mode === "growth" || state.mode === "relative") ? t("pts") : item.rawUnit;
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td>${item.meta.display_name}</td>
+      <td>${t(item.meta.display_name)}</td>
       <td>${formatSummaryValue(latest.value, item.rawUnit)}</td>
       <td class="${valueTone(latest.change)}">${formatSignedDiagnostic(latest.change, deltaUnit, false)}</td>
       <td class="${valueTone(latest.rate)}">${formatSignedDiagnostic(latest.rate, "%", true)}</td>
@@ -860,7 +858,7 @@ function renderMiniChart(svgId, diagnostics, config) {
   const chartHeight = height - pad.top - pad.bottom;
   const lines = diagnostics.map((item, index) => ({
     id: item.id,
-    label: item.meta.short_name,
+    label: t(item.meta.short_name),
     color: seriesColor(item.id),
     item,
     points: item[metricKey].filter((point) => Number.isFinite(point.value)),
@@ -870,7 +868,7 @@ function renderMiniChart(svgId, diagnostics, config) {
   svg.insertAdjacentHTML("beforeend", `<rect x="0" y="0" width="${width}" height="${height}" rx="14" fill="#0b1814"></rect>`);
 
   if (!allPoints.length) {
-    svg.insertAdjacentHTML("beforeend", `<text x="${width / 2}" y="${height / 2}" text-anchor="middle" fill="#91a49d" font-size="13">Need more months</text>`);
+    svg.insertAdjacentHTML("beforeend", `<text x="${width / 2}" y="${height / 2}" text-anchor="middle" fill="#91a49d" font-size="13">${t("Need more months")}</text>`);
     return;
   }
 
@@ -950,9 +948,9 @@ function renderMiniChart(svgId, diagnostics, config) {
 }
 
 function getDiagnosticUnitLabel(display) {
-  if (state.mode === "growth" || state.mode === "relative") return "Index points";
-  if (display.units?.length === 1) return `Delta ${display.units[0]}`;
-  return "Delta";
+  if (state.mode === "growth" || state.mode === "relative") return t("Index points");
+  if (display.units?.length === 1) return `${t("Delta")} ${display.units[0]}`;
+  return t("Delta");
 }
 
 function valueTone(value) {
@@ -961,7 +959,7 @@ function valueTone(value) {
 }
 
 function getDeltaUnit(item) {
-  return (state.mode === "growth" || state.mode === "relative") ? "pts" : item.rawUnit;
+  return (state.mode === "growth" || state.mode === "relative") ? t("pts") : item.rawUnit;
 }
 
 function renderDiagnosticTooltip(svg, pointer, title, date, rows, formatValue) {
@@ -1002,7 +1000,7 @@ function hideDiagnosticTooltip() {
 function formatSignedDiagnostic(value, unit, isRateLike) {
   if (!Number.isFinite(value)) return "-";
   const sign = value > 0 ? "+" : "";
-  const formatted = isRateLike ? value.toFixed(2) : formatRawValue(value);
+  const formatted = isRateLike ? decimal(value, 2) : formatRawValue(value);
   if (unit === "%") return `${sign}${formatted}%`;
   if (unit === " pp") return `${sign}${formatted} pp`;
   return `${sign}${formatted}${unit ? ` ${unit}` : ""}`;
@@ -1011,10 +1009,10 @@ function formatSignedDiagnostic(value, unit, isRateLike) {
 function formatMiniAxis(value) {
   if (!Number.isFinite(value)) return "-";
   const abs = Math.abs(value);
-  if (abs >= 1000) return value.toLocaleString(undefined, { maximumFractionDigits: 0 });
-  if (abs >= 100) return value.toFixed(0);
-  if (abs >= 10) return value.toFixed(1);
-  return value.toFixed(2);
+  if (abs >= 1000) return value.toLocaleString(locale(), { maximumFractionDigits: 0 });
+  if (abs >= 100) return decimal(value, 0);
+  if (abs >= 10) return decimal(value, 1);
+  return decimal(value, 2);
 }
 
 function renderChart(display) {
@@ -1163,9 +1161,9 @@ function renderTooltip(display, index, xPos) {
     const deltaPct = ((point.value / start) - 1) * 100;
     return `
       <div class="tooltip-row">
-        <span class="tooltip-series"><span class="legend-swatch" style="background:${seriesColor(series.id)}"></span>${series.meta.short_name}</span>
+        <span class="tooltip-series"><span class="legend-swatch" style="background:${seriesColor(series.id)}"></span>${t(series.meta.short_name)}</span>
         <span class="tooltip-value">${formatTooltipValue(point.value, series.rawUnit)}</span>
-        <span class="${deltaPct >= 0 ? "positive" : "negative"}">${deltaPct >= 0 ? "+" : ""}${deltaPct.toFixed(1)}%</span>
+        <span class="${deltaPct >= 0 ? "positive" : "negative"}">${deltaPct >= 0 ? "+" : ""}${decimal(deltaPct, 1)}%</span>
       </div>
     `;
   }).join("");
@@ -1189,22 +1187,22 @@ function hideTooltip() {
 }
 
 function getEmptyReason(reason) {
-  if (reason === "mixed-price") return { title: "Use Growth for this comparison", body: "Index levels and prices in different units work best when everything starts at 100. Choose Growth above, or select stocks for Price mode." };
+  if (reason === "mixed-price") return { title: t("Use Growth for this comparison"), body: t("Index levels and prices in different units work best when everything starts at 100. Choose Growth above, or select stocks for Price mode.") };
   if (reason === "no-selection") {
     return {
-      title: "No lines selected",
-      body: "Choose stocks, indexes, currencies, or commodities above to start exploring.",
+      title: t("No lines selected"),
+      body: t("Choose stocks, indexes, currencies, or commodities above to start exploring."),
     };
   }
   if (reason === "no-common-dates") {
     return {
-      title: "No shared monthly window",
-      body: "The selected lines and benchmark do not overlap inside the chosen date range. Try widening the range or changing the benchmark.",
+      title: t("No shared monthly window"),
+      body: t("The selected lines and benchmark do not overlap inside the chosen date range. Try widening the range or changing the benchmark."),
     };
   }
   return {
-    title: "Nothing to draw",
-    body: "The current combination does not produce usable monthly points.",
+    title: t("Nothing to draw"),
+    body: t("The current combination does not produce usable monthly points."),
   };
 }
 
@@ -1226,34 +1224,41 @@ function buildTicks(min, max, count) {
 }
 
 function formatAxis(value) {
-  if (Math.abs(value) >= 1000) return value.toLocaleString(undefined, { maximumFractionDigits: 0 });
-  if (Math.abs(value) >= 1) return Number(value.toFixed(2)).toString();
-  return Number(value.toPrecision(3)).toString();
+  if (Math.abs(value) >= 1000) return value.toLocaleString(locale(), { maximumFractionDigits: 0 });
+  if (Math.abs(value) >= 1) return value.toLocaleString(locale(), {maximumFractionDigits: 2, useGrouping: false});
+  return value.toLocaleString(locale(), {maximumSignificantDigits: 3, useGrouping: false});
 }
 
 function formatSummaryValue(value, unit) {
   if (!Number.isFinite(value)) return "-";
-  if (state.mode === "growth" || state.mode === "relative") return value.toFixed(1);
+  if (state.mode === "growth" || state.mode === "relative") return decimal(value, 1);
   return `${formatRawValue(value)}${unit ? ` ${unit}` : ""}`;
 }
 
 function formatTooltipValue(value, unit) {
-  if (state.mode === "growth" || state.mode === "relative") return `${value.toFixed(1)}`;
+  if (state.mode === "growth" || state.mode === "relative") return `${decimal(value, 1)}`;
   return `${formatRawValue(value)}${unit ? ` ${unit}` : ""}`;
 }
 
 function formatRawValue(value) {
   if (!Number.isFinite(value)) return "-";
   if (Math.abs(value) >= 1000) {
-    return value.toLocaleString(undefined, { maximumFractionDigits: 1 });
+    return value.toLocaleString(locale(), { maximumFractionDigits: 1 });
   }
   if (Math.abs(value) >= 100) {
-    return value.toFixed(1);
+    return decimal(value, 1);
   }
-  return value.toFixed(2);
+  return decimal(value, 2);
+}
+
+function updateCoverage() {
+  document.getElementById("datasetBadge").innerHTML = `<strong>${state.metadata.length}</strong> ${t("assets")} <span>·</span> <strong>${new Set(state.metadata.filter(m => m.category === "stock" || m.category === "index").map(m => m.country)).size}</strong> ${t("markets")} <span>·</span> ${t("Since")} ${state.allDates[0].slice(0, 4)}`;
+  document.getElementById("dataCoverage").textContent = t("Monthly · Through {0}", formatMonth(state.allDates.at(-1)));
+  document.getElementById("sourceCoverage").textContent = t("Monthly history from {0} through {1}, where available. Every comparison uses the dates shared by all selected assets.", formatMonth(state.allDates[0]), formatMonth(state.allDates.at(-1)));
 }
 
 async function init() {
+  setupLanguage();
   const [seriesText, metadataText] = await Promise.all([
     loadTextWithFallback("data/series.csv", "embedded-series-csv"),
     loadTextWithFallback("data/metadata.csv", "embedded-metadata-csv"),
@@ -1268,10 +1273,7 @@ async function init() {
   state.startDate = state.allDates[0];
   state.endDate = state.allDates[state.allDates.length - 1];
 
-  const count = state.metadata.filter((row) => row.category === "stock").length;
-  document.getElementById("datasetBadge").innerHTML = `<strong>${state.metadata.length}</strong> assets <span>·</span> <strong>${new Set(state.metadata.filter(m => m.category === "stock" || m.category === "index").map(m => m.country)).size}</strong> markets <span>·</span> Since ${state.allDates[0].slice(0, 4)}`;
-  document.getElementById("dataCoverage").textContent = `Monthly · Through ${formatMonth(state.allDates.at(-1))}`;
-  document.getElementById("sourceCoverage").textContent = `Monthly history from ${formatMonth(state.allDates[0])} through ${formatMonth(state.allDates.at(-1))}, where available. Every comparison uses the dates shared by all selected assets.`;
+  updateCoverage();
   window.addEventListener("resize", () => renderChart(state.lastDisplay));
   setupControls();
   populateDateSelects();
@@ -1281,6 +1283,6 @@ async function init() {
 
 init().catch((error) => {
   document.getElementById("chartEmptyState").classList.remove("hidden");
-  document.getElementById("chartEmptyState").textContent = "Could not load the monthly data. Refresh the page to try again.";
+  document.getElementById("chartEmptyState").textContent = t("Could not load the monthly data. Refresh the page to try again.");
   console.error(error);
 });

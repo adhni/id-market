@@ -1,0 +1,87 @@
+// Run alongside browser-smoke.cjs with the same Playwright setup and local server.
+const {chromium} = require('playwright');
+const assert = require('node:assert/strict');
+const {pathToFileURL} = require('node:url');
+const path = require('node:path');
+(async () => {
+ const browser = await chromium.launch({channel:'chrome', headless:true});
+ try {
+  const context = await browser.newContext({locale:'id-ID', viewport:{width:1440,height:1000}});
+  const page = await context.newPage();
+  const errors=[]; page.on('pageerror', error => errors.push(error.message));
+  const url = process.env.PREVIEW_URL || 'http://127.0.0.1:4173';
+  await page.goto(url);
+  await page.waitForSelector('#chart polyline');
+  assert.equal(await page.locator('html').getAttribute('lang'),'id');
+  assert.match(await page.locator('#pageTitle').innerText(),/Dan dunia/);
+  assert.equal((await page.locator('.brand').first().innerText()).replace(/\s/g,''),'IDMarket');
+  assert.match(await page.locator('.result-value').first().innerText(),/,\d%/);
+  assert.match(await page.locator('#dataCoverage').innerText(),/Agu/);
+  assert.equal(await page.locator('[data-range="3Y"]').getAttribute('aria-pressed'),'true');
+  await page.click('[data-collection="world"]');
+  await page.click('[data-preset="asia"]');
+  await page.selectOption('#benchmarkSelect','USDIDR');
+  await page.click('#customDates > summary');
+  await page.selectOption('#startDate','2020-08-01');
+  await page.selectOption('#endDate','2024-08-01');
+  await page.click('#closeDatePicker');
+  const snapshot=()=>page.evaluate(()=>JSON.stringify({selected:[...state.selectedSeries],mode:state.mode,benchmark:state.benchmark,start:state.startDate,end:state.endDate,collection:state.collection,preset:state.activePreset,values:state.lastDisplay.series.map(s=>s.values)}));
+  const before=await snapshot();
+  await page.click('[data-language="en"]');
+  assert.equal(await snapshot(),before,'switching keeps selection, period, reference and calculated values');
+  assert.match(await page.locator('#worldContext').innerText(),/Measured in US Dollar/);
+  assert.match(await page.locator('#chartRangeLabel').innerText(),/Aug 2020/);
+  await page.click('[data-language="id"]');
+  assert.equal(await snapshot(),before);
+  assert.match(await page.locator('#worldContext').innerText(),/Diukur dalam Dolar AS/);
+  assert.match(await page.locator('#chartRangeLabel').innerText(),/Agu 2020/);
+  await page.click('#resetSelections');
+  assert.equal(await page.locator('#chart polyline').count(),4,'reset works in Indonesian');
+  await page.click('[data-result="money"]');
+  await page.click('[data-language="en"]');
+  assert.equal(await page.locator('[data-result="money"]').getAttribute('aria-pressed'),'true');
+  assert.match(await page.locator('.result-value').first().innerText(),/^Rp[\d,]+$/);
+  await page.reload(); await page.waitForSelector('#chart polyline');
+  assert.equal(await page.locator('html').getAttribute('lang'),'en','saved choice overrides browser language');
+  await page.click('[data-language="id"]');
+  await page.click('#stockToggleSummary');
+  await page.fill('#stockToggleSearch','emas');
+  assert.equal(await page.locator('#stockToggleList input').count(),1);
+  assert.match(await page.locator('#stockToggleList').innerText(),/Emas/);
+  await page.fill('#stockToggleSearch','nothingmatches');
+  assert.match(await page.locator('#stockToggleList').innerText(),/Tidak ada hasil/);
+  await page.click('#clearComparison');
+  assert.match(await page.locator('#chartEmptyState').innerText(),/Belum ada aset/);
+  await page.keyboard.press('Escape');
+  await page.click('#resetSelections');
+  await page.click('[data-mode="price"]');
+  assert.match(await page.locator('#chartEmptyState').innerText(),/Gunakan Pertumbuhan/);
+  await page.click('[data-mode="growth"]');
+  await page.click('#changeDiagnostics > summary');
+  assert.match(await page.locator('#diagnosticBody').innerText(),/Emas/);
+  await page.click('#changeDiagnostics > summary');
+  const overlay=await page.locator('#chartOverlay').boundingBox();
+  await page.mouse.move(overlay.x+overlay.width*.6,overlay.y+overlay.height*.4);
+  assert.match(await page.locator('#chartTooltip').innerText(),/Emas/);
+  await page.locator('h1').hover();
+  await page.screenshot({path:'/tmp/id-market-indonesian.png',fullPage:true});
+  for (const width of [1440,1280,390]) {
+   await page.setViewportSize({width,height:1000});
+   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`no overflow at ${width}`);
+  }
+  // Offline fallback and unavailable storage must still allow language switching.
+  const offline = await browser.newContext({locale:'id-ID'});
+  await offline.addInitScript(()=>{Object.defineProperty(window,'localStorage',{get(){throw new Error('Storage disabled');}});});
+  const file=await offline.newPage();
+  await file.goto(pathToFileURL(path.resolve(__dirname,'../index.html')).href);
+  await file.waitForSelector('#chart polyline');
+  assert.equal(await file.locator('html').getAttribute('lang'),'id');
+  await file.click('[data-language="en"]');
+  assert.equal(await file.locator('html').getAttribute('lang'),'en');
+  const fallback=await browser.newContext({locale:'fr-FR'});
+  const other=await fallback.newPage(); await other.goto(url); await other.waitForSelector('#chart polyline');
+  assert.equal(await other.locator('html').getAttribute('lang'),'en');
+  assert.deepEqual(errors,[]);
+  console.log('PASS: browser-language default, EN/ID switching, unchanged comparison, localized search/dates/numbers/tooltips, reset, persistence, layout, offline and unavailable storage.');
+ } finally {await browser.close();}
+})().catch(error=>{console.error(error);process.exitCode=1;});
