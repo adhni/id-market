@@ -8,11 +8,12 @@ const source = fs.readFileSync(path.join(root, 'app.js'), 'utf8').split('\ninit(
 function model() {
   const context = vm.createContext({console});
   vm.runInContext(fs.readFileSync(path.join(root, 'i18n.js'), 'utf8') + '\n' + source, context);
-  for (const name of ['series', 'metadata']) context[name + 'CSV'] = fs.readFileSync(path.join(root, 'data', name + '.csv'), 'utf8');
+  for (const name of ['series', 'metadata', 'inflation']) context[name + 'CSV'] = fs.readFileSync(path.join(root, 'data', name + '.csv'), 'utf8');
   vm.runInContext(`
     state.rawSeries = parseCSV(seriesCSV); state.metadata = parseCSV(metadataCSV);
     const maps = buildMaps(state.rawSeries, state.metadata);
     state.seriesMap = maps.grouped; state.metadataMap = maps.metaMap;
+    state.seriesMap.set("CPI_ID", parseCSV(inflationCSV).map(r => ({date:r.date, value:Number(r.value)})));
     state.startDate = '2023-08-01'; state.endDate = '2026-08-01';
   `, context);
   return (code) => vm.runInContext(code, context);
@@ -63,7 +64,7 @@ test('empty selections remain recoverable', () => {
 });
 test('embedded files match CSVs for offline opening', () => {
   const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
-  for (const name of ['series', 'metadata']) {
+  for (const name of ['series', 'metadata', 'inflation']) {
     const embedded = html.match(new RegExp('<script id="embedded-' + name + '-csv" type="text/plain">([\\s\\S]*?)</script>'))[1];
     assert.equal(embedded.trim(), fs.readFileSync(path.join(root, 'data', name + '.csv'), 'utf8').trim());
   }
@@ -96,4 +97,26 @@ test('world overview calculations do not change the active comparison', () => {
  assert.equal(run(`WORLD_MARKETS.every(id=>buildDisplaySeries({ids:[id],mode:'growth'}).series.length===1)`),true);
  assert.equal(run('JSON.stringify([...state.selectedSeries])'),before);
  assert.equal(run(`state.metadata.every(meta=>currencyRefs(meta).every(id=>state.seriesMap.has(id)))`),true);
+});
+
+test('inflation adjustment deflates IDR growth using monthly CPI and leaves other references unchanged', () => {
+ const run=model();
+ const [nominal, real, expected]=run(`
+   const nominal=buildDisplaySeries().series[0].values.at(-1).value;
+   state.inflation=true;
+   const real=buildDisplaySeries().series[0].values.at(-1).value;
+   const cpi=new Map(state.seriesMap.get('CPI_ID').map(p=>[p.date,p.value]));
+   [nominal,real,nominal*cpi.get(state.startDate)/cpi.get(state.endDate)];
+ `);
+ assert.ok(Math.abs(real-expected)<1e-9);
+ assert.notEqual(real,nominal);
+ assert.equal(run(`state.benchmark='USDIDR'; const a=buildDisplaySeries().series[0].values.at(-1).value; state.inflation=false; a===buildDisplaySeries().series[0].values.at(-1).value`),true);
+ assert.equal(run(`state.inflation=true; state.benchmark='IDR'; state.seriesMap.get('CPI_ID').pop(); buildDisplaySeries().dates.at(-1)`),'2026-07-01');
+});
+test('drawdown tracks prior peaks, including recovery and flat/rising series', () => {
+ const run=model();
+ assert.ok(Math.abs(run('maxDrawdown([100,120,90,130,110])')+25)<1e-9);
+ assert.equal(run('maxDrawdown([100,110,120])'),0);
+ assert.equal(run('maxDrawdown([100,100])'),0);
+ assert.equal(run('maxDrawdown([100])'),0);
 });
