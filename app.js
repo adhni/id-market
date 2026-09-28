@@ -22,6 +22,7 @@ const state = {
   seriesMap: new Map(),
   metadataMap: new Map(),
   selectedSeries: new Set(DEFAULT_SERIES),
+  inflation: false,
   mode: "growth",
   benchmark: "IDR",
   startDate: null,
@@ -262,6 +263,12 @@ function buildMaps(seriesRows, metadataRows) {
 }
 
 function setupControls() {
+  document.getElementById("adjustInflation").addEventListener("change", (event) => {
+    state.inflation = event.target.checked;
+    state.hoverIndex = null;
+    render();
+  });
+  document.getElementById("shareComparison").addEventListener("click", shareComparison);
   renderBenchmarkOptions();
   renderStockToggleDropdown();
   populateDateSelects();
@@ -291,6 +298,7 @@ function setupControls() {
     });
   }
   document.getElementById("resetSelections").addEventListener("click", () => {
+    state.inflation = false;
     state.resultMode = "percent";
     state.assetCategory = "all";
     state.assetCountry = "all";
@@ -581,6 +589,19 @@ function valueInIDR(value, meta, date, referenceMaps) {
   return refs.length ? value * referenceMaps.get(refs[0])?.get(date) : value;
 }
 
+function inflationActive(mode = state.mode, benchmark = state.benchmark) {
+  return state.inflation && mode === "growth" && benchmark === "IDR";
+}
+
+function maxDrawdown(values) {
+  let peak = values[0], worst = 0;
+  for (const value of values) {
+    peak = Math.max(peak, value);
+    if (peak > 0) worst = Math.min(worst, (value / peak - 1) * 100);
+  }
+  return worst;
+}
+
 function transformSeries(alignedRows, meta, referenceMaps, mode = state.mode, benchmark = state.benchmark) {
   const converted = alignedRows.map((row) => ({
     date: row.date,
@@ -590,7 +611,7 @@ function transformSeries(alignedRows, meta, referenceMaps, mode = state.mode, be
   if (mode === "price") return converted;
   const first = converted[0]?.value;
   if (!Number.isFinite(first) || first <= 0) return [];
-  return converted.map((row) => ({ date: row.date, value: row.value / first * 100 }));
+  return converted.map((row) => ({ date: row.date, value: row.value / first * 100 * (inflationActive(mode, benchmark) ? referenceMaps.get("CPI_ID").get(converted[0].date) / referenceMaps.get("CPI_ID").get(row.date) : 1) }));
 }
 
 function buildDisplaySeries({ ids = [...state.selectedSeries], mode = state.mode, benchmark = state.benchmark } = {}) {
@@ -604,6 +625,7 @@ function buildDisplaySeries({ ids = [...state.selectedSeries], mode = state.mode
   const referenceIds = [...new Set([
     ...getPriceReferenceSeriesIds(benchmark),
     ...metas.flatMap(currencyRefs),
+    ...(inflationActive(mode, benchmark) ? ["CPI_ID"] : []),
   ])];
   const commonDates = getCommonDates([...selected, ...referenceIds]);
   if (!commonDates.length) return { series: [], dates: [], reason: "no-common-dates", units: [] };
@@ -669,11 +691,16 @@ function render() {
 }
 
 function updateCopy() {
+  const inflationAvailable = state.mode === "growth" && state.benchmark === "IDR";
+  document.getElementById("adjustInflation").disabled = !inflationAvailable;
+  document.getElementById("adjustInflation").checked = inflationActive();
+  document.getElementById("inflationNote").textContent = !inflationAvailable ? t("Available in Growth measured in Rupiah") : inflationActive() ? t("After inflation · CPI through {0}", formatMonth(state.seriesMap.get("CPI_ID").at(-1).date)) : "";
   const label = getBenchmarkLabel();
   const price = state.mode === "price";
   const relative = state.mode === "relative";
   document.getElementById("chartTitle").textContent = price ? t("Price over time.") : relative ? t("Against {0}.", label) : t("A common starting point.");
   document.getElementById("chartSubtitle").textContent = price ? t("Monthly prices in {0}.", label) : relative ? t("Above 100 = ahead of the benchmark.") : t("All assets start at 100. A value of 120 means a 20% increase.");
+  if (inflationActive()) document.getElementById("chartSubtitle").textContent = t("Starts at 100, after Indonesian inflation. Values reflect the starting month’s purchasing power.");
   document.getElementById("chartBasis").textContent = `${price ? t("PRICE") : t("BASE 100")} / ${t(getBenchmarkDef()?.displayUnit || "") || state.metadataMap.get(state.benchmark)?.short_name || state.benchmark}`;
 }
 
@@ -721,10 +748,12 @@ function renderLegend(displaySeries) {
 }
 
 function renderSummary(displaySeries) {
+  document.getElementById("shareFeedback").hidden = true;
   const host = document.getElementById("comparisonResults");
   const moneyAvailable = state.mode === "growth" && state.benchmark === "IDR";
-  if (!moneyAvailable) state.resultMode = "percent";
+  if (!moneyAvailable && state.resultMode === "money") state.resultMode = "percent";
   const money = state.resultMode === "money";
+  const drawdown = state.resultMode === "drawdown";
   document.querySelector('[data-result="money"]').disabled = !moneyAvailable;
   document.querySelector('[data-result="money"]').title = moneyAvailable ? t("Value following each asset from Rp1 million") : t("Available in Growth measured in Rupiah");
   document.querySelectorAll("#resultMode button").forEach((button) => {
@@ -734,6 +763,11 @@ function renderSummary(displaySeries) {
   });
   document.getElementById("resultContext").textContent = money ? t("If Rp1 million followed each asset") : t("Change in {0} terms", getBenchmarkLabel());
   document.getElementById("comparisonNote").textContent = money ? t("An illustration of price movement, excluding dividends and costs. Indexes and commodities are proxies.") : t("Price movement only. Dividends and costs excluded.");
+  if (drawdown) {
+    document.getElementById("resultContext").textContent = t("Largest fall from a previous peak");
+    document.getElementById("comparisonNote").textContent = t("Within this period, using monthly data. Daily falls may be larger. Closer to 0% means a smaller fall.");
+  }
+  if (inflationActive()) document.getElementById("resultContext").textContent += " · " + t("After inflation");
   host.innerHTML = "";
   if (!displaySeries.length) {
     host.innerHTML = `<p class="results-empty">${t("Your results will appear here once there is a comparison to show.")}</p>`;
@@ -742,7 +776,7 @@ function renderSummary(displaySeries) {
   for (const series of displaySeries) {
     const values = series.values.map((point) => point.value);
     const ratio = values.at(-1) / values[0];
-    const pct = (ratio - 1) * 100;
+    const pct = drawdown ? maxDrawdown(values) : (ratio - 1) * 100;
     const formatted = money ? `Rp${Math.round(1000000 * ratio).toLocaleString(locale())}` : `${pct >= 0 ? "+" : ""}${decimal(pct, 1)}%`;
     const min = Math.min(...values), span = Math.max(...values) - min || 1;
     const points = values.map((value, index) => `${index / Math.max(values.length - 1, 1) * 70},${22 - (value - min) / span * 20}`).join(" ");
@@ -1257,17 +1291,62 @@ function updateCoverage() {
   document.getElementById("sourceCoverage").textContent = t("Monthly history from {0} through {1}, where available. Every comparison uses the dates shared by all selected assets.", formatMonth(state.allDates[0]), formatMonth(state.allDates.at(-1)));
 }
 
+// Versioned links contain only public comparison settings, never local storage.
+function comparisonHash() {
+  return new URLSearchParams({v: "1", assets: [...state.selectedSeries].join(","), start: state.startDate,
+    end: state.endDate, view: state.mode, ref: state.benchmark, result: state.resultMode,
+    inflation: inflationActive() ? "1" : "0", collection: state.collection, lang: language}).toString();
+}
+
+function restoreComparison(hash) {
+  const params = new URLSearchParams(hash.replace(/^#/, ""));
+  if (params.get("v") !== "1") return;
+  if (params.has("assets")) state.selectedSeries = new Set(params.get("assets").split(",").filter(id => state.metadataMap.has(id)));
+  if (["growth", "price", "relative"].includes(params.get("view"))) state.mode = params.get("view");
+  const ref = params.get("ref");
+  if (Object.hasOwn(BENCHMARK_DEFS, ref) || isStockBenchmark(ref)) state.benchmark = ref;
+  const start = params.get("start"), end = params.get("end");
+  if (state.allDates.includes(start) && state.allDates.includes(end) && start <= end) {
+    state.startDate = start; state.endDate = end;
+  }
+  if (["percent", "money", "drawdown"].includes(params.get("result"))) state.resultMode = params.get("result");
+  if (Object.hasOwn(COLLECTIONS, params.get("collection"))) state.collection = params.get("collection");
+  state.inflation = params.get("inflation") === "1";
+  state.activePreset = null;
+  populateDateSelects(); syncTimeframeButtons(null); renderCollections(); render();
+}
+
+async function shareComparison() {
+  const local = window.location.protocol === "file:" || ["localhost", "127.0.0.1"].includes(window.location.hostname);
+  const url = new URL(local ? "https://adhni.github.io/id-market/" : window.location.href);
+  url.hash = comparisonHash();
+  const feedback = document.getElementById("shareFeedback");
+  const input = document.getElementById("shareLink");
+  input.value = url.href;
+  feedback.hidden = false;
+  try {
+    await navigator.clipboard.writeText(url.href);
+    document.getElementById("shareMessage").textContent = t("Link copied. Anyone with it can open this comparison.");
+    input.hidden = true;
+  } catch {
+    document.getElementById("shareMessage").textContent = t("Copy this link to share your comparison:");
+    input.hidden = false; input.focus(); input.select();
+  }
+}
+
 async function init() {
   setupLanguage();
-  const [seriesText, metadataText] = await Promise.all([
+  const [seriesText, metadataText, inflationText] = await Promise.all([
     loadTextWithFallback("data/series.csv", "embedded-series-csv"),
     loadTextWithFallback("data/metadata.csv", "embedded-metadata-csv"),
+    loadTextWithFallback("data/inflation.csv", "embedded-inflation-csv"),
   ]);
 
   state.rawSeries = parseCSV(seriesText);
   state.metadata = parseCSV(metadataText);
   const { grouped, metaMap } = buildMaps(state.rawSeries, state.metadata);
   state.seriesMap = grouped;
+  state.seriesMap.set("CPI_ID", parseCSV(inflationText).map(row => ({date: row.date, value: Number(row.value)})));
   state.metadataMap = metaMap;
   state.allDates = [...new Set(state.rawSeries.filter((row) => row.frequency === "monthly").map((row) => row.date))].sort();
   state.startDate = state.allDates[0];
@@ -1279,6 +1358,15 @@ async function init() {
   populateDateSelects();
   document.getElementById("benchmarkSelect").value = state.benchmark;
   applyTimeframe("3Y");
+  restoreComparison(window.location.hash);
+  window.addEventListener("hashchange", () => {
+    const params = new URLSearchParams(window.location.hash.slice(1));
+    if (params.get("v") !== "1") return;
+    if (["en", "id"].includes(params.get("lang"))) {
+      language = params.get("lang"); applyLanguage();
+    }
+    restoreComparison(window.location.hash);
+  });
 }
 
 init().catch((error) => {

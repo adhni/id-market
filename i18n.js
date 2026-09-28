@@ -1,5 +1,19 @@
 // English copy is the translation key. Data IDs and values remain language-independent.
 const INDONESIAN = {
+  "Share": "Bagikan",
+  "Comparison link": "Tautan perbandingan",
+  "Drawdown": "Penurunan",
+  "Adjust for Indonesian inflation": "Sesuaikan dengan inflasi Indonesia",
+  "After inflation · CPI through {0}": "Setelah inflasi · IHK hingga {0}",
+  "After inflation": "Setelah inflasi",
+  "Starts at 100, after Indonesian inflation. Values reflect the starting month’s purchasing power.": "Dimulai dari 100, setelah inflasi Indonesia. Nilai mencerminkan daya beli pada bulan awal.",
+  "Largest fall from a previous peak": "Penurunan terbesar dari puncak sebelumnya",
+  "Within this period, using monthly data. Daily falls may be larger. Closer to 0% means a smaller fall.": "Dalam periode ini, berdasarkan data bulanan. Penurunan harian bisa lebih besar. Makin dekat ke 0%, makin kecil penurunannya.",
+  "Link copied. Anyone with it can open this comparison.": "Tautan disalin. Siapa pun dapat membuka perbandingan ini.",
+  "Copy this link to share your comparison:": "Salin tautan ini untuk membagikan perbandinganmu:",
+  "Inflation uses Indonesia’s monthly consumer price index from the": "Inflasi menggunakan indeks harga konsumen bulanan Indonesia dari",
+  ". Adjusted values show purchasing power in the starting month’s rupiah. Missing CPI months are excluded.": ". Nilai disesuaikan dengan daya beli rupiah pada bulan awal. Bulan tanpa data IHK tidak disertakan.",
+  "Drawdown is the largest peak-to-trough fall in the selected period, using monthly observations and the current measuring reference. Daily falls may be larger.": "Penurunan adalah penurunan terbesar dari puncak ke titik terendah dalam periode pilihan, berdasarkan data bulanan dan acuan pengukuran saat ini. Penurunan harian bisa lebih besar.",
   "Skip to comparison": "Langsung ke perbandingan",
   "ID Market home": "Beranda ID Market",
   "About the data": "Tentang data",
@@ -184,6 +198,10 @@ const INDONESIAN = {
 };
 let language = 'en';
 function preferredLanguage() {
+  if (typeof window !== 'undefined') {
+    const params = new URLSearchParams(window.location.hash.slice(1));
+    if (params.get('v') === '1' && ['en', 'id'].includes(params.get('lang'))) return params.get('lang');
+  }
   try {
     const saved = localStorage.getItem('id-market-language');
     if (saved === 'en' || saved === 'id') return saved;

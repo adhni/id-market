@@ -6,6 +6,10 @@ Live site: https://adhni.github.io/id-market/
 
 ## Explore
 
+- **Inflation:** the checkbox adjusts Growth measured in Rupiah using Indonesia’s monthly CPI ([BIS, M.ID.628](https://data.bis.org/topics/CPI/BIS,WS_LONG_CPI,1.0/M.ID.628), index 2010=100, not seasonally adjusted). Growth is divided by CPI growth over the same shared dates; missing CPI months are excluded. Rp1 million then represents starting-month purchasing power.
+- **Drawdown:** the result tab shows the largest fall from a prior monthly peak within the chosen period and measuring reference. It includes inflation adjustment when active. Daily/intraday losses may be larger.
+- **Share:** copies a versioned link with assets, dates, view, reference, inflation, results tab, collection, and language. Local previews generate public-site links, usable once the change is deployed.
+
 - **EN / ID** in the header switches the interface between English and Indonesian, including dates, numbers, asset search, and chart details. Your choice is remembered locally; the first visit follows your browser language (English fallback). Switching keeps the active comparison intact.
 
 - **62 stocks** (50 Indonesian + 12 international), **10 indexes**, **8 currencies**, **6 commodities**, and **Bitcoin + Ethereum**: 88 selectable lines.
@@ -61,8 +65,11 @@ Browser smoke checks require an installed Playwright package and Google Chrome, 
 ```sh
 node tests/browser-smoke.cjs
 node tests/language-smoke.cjs
+node tests/analysis-smoke.cjs
 ```
 
 If Playwright is installed elsewhere, set `NODE_PATH` to that installation's `node_modules` directory. Browser checks cover the World overview, cross-market themes, country filters, currency switching, desktop layout, presets, stable colors and linked highlights, category filters and search, custom dates, benchmarks, price mode, reset, empty selections, the money illustration, a basic narrow-screen fallback, and direct-file opening. Preview screenshots are written to the system temporary directory.
 
 Translations live in `i18n.js`, keyed by English copy. Static page text is captured once at startup; dynamic interface text uses `t()`. Market data, ticker IDs, and calculations stay independent of the selected language.
+
+Refresh CPI separately with `python3 scripts/refresh_inflation.py`; this updates `data/inflation.csv` and its offline HTML copy. Bundled CPI currently covers January 2010–August 2026.

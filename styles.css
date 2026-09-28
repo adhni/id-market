@@ -274,3 +274,12 @@ th:not(:first-child), td:not(:first-child) { text-align: right; font-family: var
 .language-toggle { flex-shrink: 0; }
 .language-toggle button { padding: 6px 9px; font-family: var(--mono); font-size: 11px; }
 html[lang="id"] .toolbar { column-gap: 16px; }
+
+.analysis-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; margin: -8px 0 22px; font-size: 12px; color: var(--muted); }
+.analysis-controls label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.analysis-controls input { accent-color: var(--accent); width: 16px; height: 16px; }
+.analysis-controls label:has(:disabled) { opacity: .55; }
+.share-feedback { padding: 12px 16px; margin-bottom: 18px; border: 1px solid var(--line); border-radius: 6px; color: var(--mint); font-size: 12px; }
+#shareLink { display: block; width: 100%; margin-top: 8px; padding: 8px; color: var(--text); background: var(--raised); border: 1px solid var(--line); }
+.header-right { gap: 20px; }
+@media (max-width: 600px) { .header-right { gap: 10px; } }
