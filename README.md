@@ -16,7 +16,7 @@ Live site: https://adhni.github.io/id-market/
 
 - **EN / ID** in the header switches the interface between English and Indonesian, including dates, numbers, asset search, and chart details. Your choice is remembered locally; the first visit follows your browser language (English fallback). Switching keeps the active comparison intact.
 
-- **62 stocks** (50 Indonesian + 12 international), **10 indexes**, **8 currencies**, **6 commodities**, and **Bitcoin + Ethereum**: 88 selectable lines.
+- **62 stocks** (50 Indonesian + 12 international), **10 indexes**, **8 currencies**, **12 commodities**, and **Bitcoin + Ethereum**: 94 selectable lines.
 - Explore **Indonesia**, **World**, and **Themes** in the same workspace. World shows nine clickable index snapshots, with mini charts and period changes in the chosen measuring currency.
 - New markets include the US, Australia, Singapore, Malaysia, Japan, Hong Kong, and India. TSMC uses its USD-denominated US ADR, filed under Taiwan.
 - Monthly history from **January 2010 to August 2026**, with shorter histories for newer listings.
@@ -49,10 +49,12 @@ python3 scripts/refresh_data.py
 
 Requires Python 3 and curl, with internet access. The script downloads monthly history, excludes the current incomplete month, rebuilds both CSV files, and updates the embedded HTML copies. All downloads and parsing must succeed before the files are written. Provider URLs and coverage are stored per series in `data/metadata.csv`.
 
+To refresh only the World Bank commodities, run `python3 scripts/refresh_data.py --commodities-only`. This keeps the other series and limits commodity coverage to the bundled USD/IDR history so additions work in Rupiah immediately.
+
 Sources:
 
 - [Yahoo Finance](https://finance.yahoo.com/): monthly stock/index/FX/crypto close series. Uses the chart endpoint, which can change or rate-limit requests. Stock closes use the provider's split adjustments; cash dividends are not included.
-- [World Bank Pink Sheet](https://www.worldbank.org/en/research/commodity-markets): monthly average gold, WTI oil, Australian coal, nickel, palm oil, and Thai 5% rice prices. The script discovers the current workbook link.
+- [World Bank Pink Sheet](https://www.worldbank.org/en/research/commodity-markets): monthly average gold, silver, copper, tin, WTI oil, Australian coal, nickel, palm oil, Thai 5% rice, Robusta coffee, cocoa, and RSS3 rubber prices. These are global commodity reference prices. The script discovers the current workbook link.
 
 Every non-IDR asset is converted from its recorded quote currency into IDR before conversion to the chosen measuring reference. Currency, country, and exchange are recorded in the catalog and metadata. INR/IDR is derived as USD/IDR divided by USD/INR. Commodities and crypto use USD quotes. Their monthly averages are compared with month-end financial prices: this is an exploratory view, not a trading feed. The refresh replaces the older mixed-source dataset rather than splicing incompatible histories.
 
