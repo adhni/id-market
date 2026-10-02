@@ -49,6 +49,14 @@ const path = require('node:path');
   assert.equal(await page.locator('html').getAttribute('lang'),'en','saved choice overrides browser language');
   await page.click('[data-language="id"]');
   await page.click('#stockToggleSummary');
+  for (const [word,id] of [['perak','SILVER'],['tembaga','COPPER'],['timah','TIN'],['kopi robusta','COFFEE_ROBUSTA'],['kakao','COCOA'],['karet','RUBBER']]) {
+   await page.fill('#stockToggleSearch',word);
+   assert.equal(await page.locator('#stockToggleList input').count(),1,word+' finds its commodity');
+   assert.equal(await page.locator('#stockToggleList input').getAttribute('value'),id);
+   await page.check('#stockToggleList input');
+   assert.equal(await page.locator(`#chart [data-series="${id}"] polyline`).count(),1,id+' draws');
+   await page.uncheck('#stockToggleList input');
+  }
   await page.fill('#stockToggleSearch','emas');
   assert.equal(await page.locator('#stockToggleList input').count(),1);
   assert.match(await page.locator('#stockToggleList').innerText(),/Emas/);

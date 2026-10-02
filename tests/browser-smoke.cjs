@@ -91,7 +91,7 @@ const {pathToFileURL} = require('node:url');
   assert.match(await page.locator('.result-growth').first().innerText(),/%$/);
   await page.click('#stockToggleSummary');
   await page.click('[data-category="commodity"]');
-  assert.equal(await page.locator('#stockToggleList input').count(),6);
+  assert.equal(await page.locator('#stockToggleList input').count(),12);
   await page.fill('#stockToggleSearch','nickel');
   assert.equal(await page.locator('#stockToggleList input').count(),1);
   await page.check('#stockToggleList input');

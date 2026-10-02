@@ -20,7 +20,8 @@ function model() {
 }
 test('expanded bundle includes 62 stocks, global indexes, crypto and currencies', () => {
   const run = model();
-  assert.equal(run('state.metadata.length'), 88);
+  assert.equal(run('state.metadata.length'), 94);
+  assert.equal(run('state.metadata.filter(m => m.category === "commodity").length'), 12);
   assert.equal(run('state.metadata.filter(m => m.category === "stock").length'), 62);
   assert.equal(run('state.seriesMap.has("IHSG") && state.seriesMap.has("LQ45")'), true);
   assert.equal(run('new Set(state.rawSeries.map(r => r.series_id + r.date)).size'), run('state.rawSeries.length'));
@@ -43,6 +44,27 @@ test('gold in IDR includes both the gold price and the exchange rate', () => {
       100 * price('GOLD', b) * price('USDIDR', b) / (price('GOLD', a) * price('USDIDR', a))];
   `);
   assert.ok(Math.abs(actual - expected) < 1e-8);
+});
+test('new commodities have global USD metadata and include FX when measured in Rupiah', () => {
+  const run = model();
+  const units = {SILVER:'USD per troy ounce',COPPER:'USD per metric ton',TIN:'USD per metric ton',COFFEE_ROBUSTA:'USD per kilogram',COCOA:'USD per kilogram',RUBBER:'USD per kilogram'};
+  for (const [id,unit] of Object.entries(units)) {
+    assert.equal(run(`state.metadataMap.get('${id}').category`),'commodity',id);
+    assert.equal(run(`state.metadataMap.get('${id}').currency`),'USD',id);
+    assert.equal(run(`state.metadataMap.get('${id}').country`),'Global',id);
+    assert.equal(run(`state.metadataMap.get('${id}').currency_or_unit`),unit,id);
+    assert.equal(run(`state.metadataMap.get('${id}').coverage_start`),'2010-01-01',id);
+    assert.equal(run(`state.metadataMap.get('${id}').coverage_end`),run(`state.metadataMap.get('USDIDR').coverage_end`),id);
+    const [idr,usd,expectedIdr,expectedUsd] = run(`(() => {
+      const idr=buildDisplaySeries({ids:['${id}'],benchmark:'IDR'}),usd=buildDisplaySeries({ids:['${id}'],benchmark:'USDIDR'});
+      const a=idr.dates[0],b=idr.dates.at(-1);
+      const price=(id,date)=>state.seriesMap.get(id).find(row=>row.date===date).value;
+      const ratio=price('${id}',b)/price('${id}',a);
+      return [idr.series[0].values.at(-1).value,usd.series[0].values.at(-1).value,100*ratio*price('USDIDR',b)/price('USDIDR',a),100*ratio];
+    })()`);
+    assert.ok(Math.abs(idr-expectedIdr)<1e-8,id+' in IDR');
+    assert.ok(Math.abs(usd-expectedUsd)<1e-8,id+' in USD');
+  }
 });
 test('USD measured in USD stays flat; a reference compared with itself stays flat', () => {
   const run = model();

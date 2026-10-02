@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Refresh bundled monthly data using Python's standard library and curl."""
+import argparse
 import concurrent.futures
 import csv
 import datetime as dt
@@ -65,7 +66,7 @@ def workbook_rows(blob, sheet_name):
         yield cells
 
 
-def commodities():
+def commodities(end=END):
     page = download("https://www.worldbank.org/en/research/commodity-markets").decode()
     url = re.search(r'https?[^"\s<>]+CMO-Historical-Data-Monthly\.xlsx', page).group()
     rows = list(workbook_rows(download(url), "Monthly Prices"))
@@ -77,6 +78,12 @@ def commodities():
         "NICKEL": ("Nickel", "Nickel", "USD per metric ton"),
         "PALM_OIL": ("Palm oil", "Palm Oil", "USD per metric ton"),
         "RICE": ("Rice, Thai 5%", "Rice", "USD per metric ton"),
+        "SILVER": ("Silver", "Silver", "USD per troy ounce"),
+        "COPPER": ("Copper", "Copper", "USD per metric ton"),
+        "TIN": ("Tin", "Tin", "USD per metric ton"),
+        "COFFEE_ROBUSTA": ("Coffee, Robusta", "Robusta Coffee", "USD per kilogram"),
+        "COCOA": ("Cocoa", "Cocoa", "USD per kilogram"),
+        "RUBBER": ("Rubber, RSS3", "Rubber", "USD per kilogram"),
     }
     result = []
     for id, (heading, name, unit) in wanted.items():
@@ -91,12 +98,13 @@ def commodities():
                 value = float(row.get(col, ""))
             except ValueError:
                 continue
-            if START <= date < END and math.isfinite(value) and value > 0:
+            if START <= date < end and math.isfinite(value) and value > 0:
                 values[date] = value
         if not values:
             raise ValueError(f"No commodity data for {id}")
         item = dict(id=id, name=name, category="commodity", sector="Commodity", unit=unit, currency="USD", country="Global", exchange="World Bank")
-        result.append((item, values, url, "World Bank Pink Sheet monthly average; illustrative comparison with month-end financial prices."))
+        notes = f"Global commodity reference price: {heading}. World Bank Pink Sheet monthly average; illustrative comparison with month-end financial prices."
+        result.append((item, values, url, notes))
         print(f"{id}: {len(values)} months, through {max(values)}", flush=True)
     return result
 
@@ -114,17 +122,30 @@ def embed():
 
 
 def main():
-    catalog = json.loads((ROOT / "data/catalog.json").read_text())
-    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
-        results = list(pool.map(yahoo, catalog))
-    # Yahoo has USD/INR history; derive IDR/INR from the two USD pairs.
-    usd_idr = next(values for item, values, _, _ in results if item["id"] == "USDIDR")
-    for index, (item, values, source, notes) in enumerate(results):
-        if item.get("cross_via_usd"):
-            values = {date: usd_idr[date] / value for date, value in values.items() if date in usd_idr}
-            results[index] = (item, values, source + " ; USDIDR (IDR=X)", "Monthly IDR cross-rate derived as USDIDR divided by the currency per USD.")
-    results += commodities()
-    series, metadata = [], []
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--commodities-only", action="store_true", help="Refresh World Bank commodities using the bundled USD/IDR coverage; keep other series.")
+    args = parser.parse_args()
+    if args.commodities_only:
+        with (ROOT / "data/series.csv").open(newline="") as f:
+            series = [row for row in csv.DictReader(f) if row["category"] != "commodity"]
+        with (ROOT / "data/metadata.csv").open(newline="") as f:
+            metadata = [row for row in csv.DictReader(f) if row["category"] != "commodity"]
+        # Keep commodity additions inside the exchange-rate history used by the app.
+        latest_fx = max(row["date"] for row in series if row["series_id"] == "USDIDR")
+        end = (dt.date.fromisoformat(latest_fx) + dt.timedelta(days=32)).replace(day=1).isoformat()
+        results = commodities(end=min(end, END))
+    else:
+        catalog = json.loads((ROOT / "data/catalog.json").read_text())
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+            results = list(pool.map(yahoo, catalog))
+        # Yahoo has USD/INR history; derive IDR/INR from the two USD pairs.
+        usd_idr = next(values for item, values, _, _ in results if item["id"] == "USDIDR")
+        for index, (item, values, source, notes) in enumerate(results):
+            if item.get("cross_via_usd"):
+                values = {date: usd_idr[date] / value for date, value in values.items() if date in usd_idr}
+                results[index] = (item, values, source + " ; USDIDR (IDR=X)", "Monthly IDR cross-rate derived as USDIDR divided by the currency per USD.")
+        results += commodities()
+        series, metadata = [], []
     for item, values, source, notes in results:
         for date, value in sorted(values.items()):
             series.append(dict(zip(SERIES_FIELDS, [date, item["id"], item["name"], item["category"], round(value, 6), item["unit"], "monthly"])))
