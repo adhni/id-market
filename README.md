@@ -6,8 +6,12 @@ Live site: https://adhni.github.io/id-market/
 
 ## Explore
 
+- **Start simply:** choose assets, a period, and a currency. Growth in Rupiah is the default. Price, benchmark comparisons, other measuring references, inflation, and Biggest fall live in **More options**. Active settings stay visible above the chart, including those restored from an existing share link.
+- **Read the result:** Rupiah Growth shows the Rp1 million illustration and percentage change together, with a short factual takeaway and the actual shared dates. Other currencies show percentage change; Price shows the latest converted price and its change.
+- **Explore by touch:** tap a chart month to pin its details, then close them or tap elsewhere. Arrow keys, Home, and End explore months from the focused chart; Escape dismisses details. Tap a result or legend item to pin its line highlight.
+
 - **Inflation:** the checkbox adjusts Growth measured in Rupiah using Indonesia’s monthly CPI ([BIS, M.ID.628](https://data.bis.org/topics/CPI/BIS,WS_LONG_CPI,1.0/M.ID.628), index 2010=100, not seasonally adjusted). Growth is divided by CPI growth over the same shared dates; missing CPI months are excluded. Rp1 million then represents starting-month purchasing power.
-- **Drawdown:** the result tab shows the largest fall from a prior monthly peak within the chosen period and measuring reference. It includes inflation adjustment when active. Daily/intraday losses may be larger.
+- **Biggest fall:** the result option in More options shows the largest fall from a prior monthly peak within the chosen period and measuring reference. It includes inflation adjustment when active. Daily/intraday losses may be larger.
 - **Share:** copies a versioned link with assets, dates, view, reference, inflation, results tab, collection, and language. Local previews generate public-site links, usable once the change is deployed.
 
 - **EN / ID** in the header switches the interface between English and Indonesian, including dates, numbers, asset search, and chart details. Your choice is remembered locally; the first visit follows your browser language (English fallback). Switching keeps the active comparison intact.
@@ -18,8 +22,8 @@ Live site: https://adhni.github.io/id-market/
 - Monthly history from **January 2010 to August 2026**, with shorter histories for newer listings.
 - Start with Indonesia vs the world, neighbouring markets, banks across borders, technology, gold vs crypto, resources, or automotive. Search by ticker, company, country, exchange, sector, or asset name; filter by market and asset type.
 - Growth starts every line at 100. IDR is the default; other measuring references are available.
-- A desktop workspace puts the chart beside a comparison list. Switch the list between percentage change and an Rp1 million illustration. Dividends and costs are excluded; indexes and commodities are comparison proxies.
-- Stable asset colors connect the chart, sparklines, and results. Hover or focus an asset to highlight its line. Search and category filters share one asset selector; custom dates sit beside the period shortcuts.
+- A desktop workspace puts the chart beside a comparison list. Presets include a short description and keep the chosen period, currency, and view. Dividends and costs are excluded; indexes and commodities are comparison proxies.
+- Distinct comparison colors connect the chart, sparklines, and results; remaining lines keep their colors when an asset is removed. Hover, focus, or tap an asset to highlight its line. Search and category filters share one asset selector; custom dates sit beside the period shortcuts.
 - Price mode is for comparable raw units. Mixed assets and indexes use Growth or Vs benchmark.
 - Comparisons use dates shared by every selected line and required reference. The page shows the actual shared window.
 
@@ -66,9 +70,12 @@ Browser smoke checks require an installed Playwright package and Google Chrome, 
 node tests/browser-smoke.cjs
 node tests/language-smoke.cjs
 node tests/analysis-smoke.cjs
+node tests/usability-smoke.cjs
 ```
 
 If Playwright is installed elsewhere, set `NODE_PATH` to that installation's `node_modules` directory. Browser checks cover the World overview, cross-market themes, country filters, currency switching, desktop layout, presets, stable colors and linked highlights, category filters and search, custom dates, benchmarks, price mode, reset, empty selections, the money illustration, a basic narrow-screen fallback, and direct-file opening. Preview screenshots are written to the system temporary directory.
+
+Usability checks also cover the simplified toolbar, combined results, preset settings retention, matching/distinct colors, existing advanced share links, keyboard chart exploration, and a 375px touch viewport with pinned tooltips and normal scrolling.
 
 Translations live in `i18n.js`, keyed by English copy. Static page text is captured once at startup; dynamic interface text uses `t()`. Market data, ticker IDs, and calculations stay independent of the selected language.
 

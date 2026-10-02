@@ -21,7 +21,7 @@
 
     <main>
       <section class="intro" aria-labelledby="pageTitle">
-        <div><p class="eyebrow">LOCAL ROOTS. A GLOBAL VIEW.</p><h1 id="pageTitle">Indonesia.<br /><em>And the world.</em></h1></div>
+        <div><p class="eyebrow">LOCAL ROOTS. A GLOBAL VIEW.</p><h1 id="pageTitle">Indonesia.<br /> <em>And the world.</em></h1></div>
         <div class="intro-note"><p>From BBCA to Nvidia. From gold to Bitcoin.<br />Explore the world’s markets, measured your way.</p><p id="datasetBadge" class="dataset-count">50 stocks <span>·</span> 11 market references</p></div>
       </section>
 
@@ -38,6 +38,7 @@
           </nav>
           <button id="resetSelections" class="text-button" type="button"><span aria-hidden="true">↺</span> Reset</button>
         </div>
+        <p id="presetDescription" class="preset-description" aria-live="polite">Stocks, gold and the dollar, side by side.</p>
 
         <div class="toolbar">
           <div class="asset-control control-group"><span class="control-label">Your assets</span>
@@ -59,35 +60,42 @@
               <div class="date-panel"><strong>Custom period</strong><div class="range-grid"><label for="startDate">From<select id="startDate"></select></label><label for="endDate">To<select id="endDate"></select></label></div><p id="rangeWindowLabel" class="muted"></p><button type="button" id="closeDatePicker" class="subtle-button">Done</button></div>
             </details>
           </div></div>
-          <div class="view-control control-group"><span class="control-label">View</span><div id="modeButtons" class="segmented mode-buttons" role="group" aria-label="Chart view"><button type="button" class="mode-button active" data-mode="growth" aria-pressed="true">Growth</button><button type="button" class="mode-button" data-mode="price" aria-pressed="false">Price</button><button type="button" class="mode-button" data-mode="relative" aria-pressed="false">Vs benchmark</button></div></div>
-          <div class="reference-control control-group" id="benchmarkBlock"><label id="benchmarkLabel" for="benchmarkSelect" class="control-label">Measure in</label><select id="benchmarkSelect" aria-label="Choose comparison reference"></select></div>
+          <div class="currency-control control-group"><label id="currencyLabel" for="currencySelect" class="control-label">Currency</label><select id="currencySelect" aria-label="Comparison currency"></select></div>
         </div>
 
-        <div class="analysis-controls"><label><input id="adjustInflation" type="checkbox" /> <span>Adjust for Indonesian inflation</span></label><span id="inflationNote" class="muted"></span></div>
+        <div class="options-row"><p id="comparisonSettings" class="comparison-settings" aria-live="polite"></p><details id="moreOptions" class="more-options"><summary><span>More options</span><span id="advancedCount" class="advanced-count" hidden></span><span class="disclosure-icon" aria-hidden="true">+</span></summary>
+          <div class="advanced-panel">
+            <div class="view-control control-group"><span class="control-label">View</span><div id="modeButtons" class="segmented mode-buttons" role="group" aria-label="Chart view"><button type="button" class="mode-button active" data-mode="growth" aria-pressed="true">Growth</button><button type="button" class="mode-button" data-mode="price" aria-pressed="false">Price</button><button type="button" class="mode-button" data-mode="relative" aria-pressed="false">Vs benchmark</button></div><p class="option-help">Growth puts every asset at the same starting point.</p></div>
+            <div class="reference-control control-group" id="benchmarkBlock"><label id="benchmarkLabel" for="benchmarkSelect" class="control-label">Measure in</label><select id="benchmarkSelect" aria-label="Choose comparison reference"></select><p class="option-help">Try another currency, gold, or a market reference.</p></div>
+            <div class="control-group"><span class="control-label">Results</span><div id="resultMode" class="segmented result-mode" role="group" aria-label="Comparison results"><button type="button" data-result="percent" class="active" aria-pressed="true">Performance</button><button type="button" data-result="drawdown" aria-pressed="false">Biggest fall</button></div><p class="option-help">Biggest fall measures the drop from an earlier peak.</p></div>
+            <div class="analysis-controls"><label><input id="adjustInflation" type="checkbox" /> <span>Adjust for Indonesian inflation</span></label><span id="inflationNote" class="muted"></span></div>
+          </div>
+        </details></div>
         <div id="shareFeedback" class="share-feedback" role="status" hidden><span id="shareMessage"></span><input id="shareLink" type="text" readonly aria-label="Comparison link" hidden /></div>
         <section id="worldOverview" class="world-overview" hidden aria-labelledby="worldTitle"><div class="world-heading"><div><p class="eyebrow">AROUND THE WORLD</p><h2 id="worldTitle">Markets at a glance.</h2></div><div><p id="worldContext"></p><span>Click a market to add it to your chart. Each uses its available history.</span></div></div><div id="worldMarkets" class="world-markets"></div></section>
         <div class="comparison-layout">
           <section class="chart-panel" aria-labelledby="chartTitle">
             <div class="chart-head"><div><p class="eyebrow">PERFORMANCE OVER TIME</p><h2 id="chartTitle">A common starting point.</h2></div><span id="chartBasis" class="chart-basis">BASE 100 / IDR</span></div>
             <div id="legend" class="legend" aria-label="Chart lines"></div>
-            <div class="chart-stage" id="chartStage"><svg id="chart" viewBox="0 0 1000 460" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Historical performance comparison"></svg><div id="chartTooltip" class="chart-tooltip" aria-hidden="true"></div><div id="chartEmptyState" class="chart-empty hidden" role="status"></div></div>
+            <div class="chart-stage" id="chartStage"><svg id="chart" viewBox="0 0 1000 460" preserveAspectRatio="xMidYMid meet" role="group" aria-label="Historical performance comparison"></svg><div id="chartTooltip" class="chart-tooltip" aria-hidden="true"></div><button id="dismissChartDetails" type="button" class="dismiss-chart-details" aria-label="Close chart details" hidden>×</button><div id="chartEmptyState" class="chart-empty hidden" role="status"></div></div>
             <div class="chart-caption"><span id="chartSubtitle">All assets start at 100. A value of 120 means a 20% increase.</span><span id="chartRangeLabel"></span></div>
             <p id="sharedWindowNote" class="shared-window" aria-live="polite"></p>
           </section>
 
           <aside class="comparison-panel" aria-labelledby="comparisonTitle">
             <div class="comparison-heading"><div><p class="eyebrow">THE PERIOD AT A GLANCE</p><h2 id="comparisonTitle">Your comparison</h2></div><span id="selectedCount" class="count-badge">04</span></div>
-            <div id="resultMode" class="segmented result-mode" role="group" aria-label="Comparison results"><button type="button" data-result="percent" class="active" aria-pressed="true">% change</button><button type="button" data-result="money" aria-pressed="false">Rp1 million</button><button type="button" data-result="drawdown" aria-pressed="false">Drawdown</button></div>
+            <p id="comparisonTakeaway" class="comparison-takeaway" aria-live="polite"></p>
             <p id="resultContext" class="result-context">Change over the selected period</p>
+            <p id="resultWindow" class="result-window"></p>
             <div id="comparisonResults" class="comparison-results" aria-live="polite"></div>
-            <div class="comparison-bottom"><p id="comparisonNote">Price movement only. Dividends and costs excluded.</p><span class="interaction-hint"><span aria-hidden="true">↖</span> Hover an asset to follow its line</span></div>
+            <div class="comparison-bottom"><p id="comparisonNote">Price movement only. Dividends and costs excluded.</p><span class="interaction-hint"><span aria-hidden="true">↖</span><span>Tap or hover an asset to follow its line</span></span></div>
           </aside>
         </div>
 
         <details class="change-diagnostics" id="changeDiagnostics"><summary><span><span class="section-number">02</span> Monthly detail</span><span class="disclosure-icon" aria-hidden="true">+</span></summary><div class="diagnostic-content"><div class="diagnostic-grid"><article><div class="diagnostic-head"><h3>Monthly change</h3><span id="changeUnitLabel">Index points</span></div><svg id="changeChart" class="mini-chart" viewBox="0 0 520 220" aria-label="Monthly change chart"></svg></article><article><div class="diagnostic-head"><h3>Rate of change</h3><span>% per month</span></div><svg id="rateChart" class="mini-chart" viewBox="0 0 520 220" aria-label="Monthly rate of change"></svg></article></div><div class="table-wrap"><table><thead><tr><th>Asset</th><th>Latest</th><th>Change</th><th>Rate</th></tr></thead><tbody id="diagnosticBody"></tbody></table></div></div><div id="diagnosticTooltip" class="diagnostic-tooltip" aria-hidden="true"></div></details>
       </section>
 
-      <details class="data-sources" id="dataSources"><summary><span><span class="section-number">03</span> About the data</span><span class="disclosure-icon" aria-hidden="true">+</span></summary><div class="source-grid"><div><h3>Monthly, with a longer view.</h3><p id="sourceCoverage">History from January 2010, where available. Every comparison uses the dates shared by the selected assets.</p></div><div><h3>Prices in perspective.</h3><p>Inflation uses Indonesia’s monthly consumer price index from the <a href="https://data.bis.org/topics/CPI" target="_blank" rel="noreferrer">BIS ↗</a><span>. Adjusted values show purchasing power in the starting month’s rupiah. Missing CPI months are excluded.</span></p><p>Drawdown is the largest peak-to-trough fall in the selected period, using monthly observations and the current measuring reference. Daily falls may be larger.</p><p>Stocks, indexes, crypto and currencies use monthly closes from <a href="https://finance.yahoo.com/" target="_blank" rel="noreferrer">Yahoo Finance ↗</a>. Commodities use monthly averages from the <a href="https://www.worldbank.org/en/research/commodity-markets" target="_blank" rel="noreferrer">World Bank ↗</a>.</p><p>Price movements exclude cash dividends and costs. Indexes and commodities are comparison proxies. Foreign assets are converted from their quote currency into the selected measuring currency. TSMC uses its US-listed ADR. The stock collection is curated; it does not represent historical index membership.</p></div></div></details>
+      <details class="data-sources" id="dataSources"><summary><span><span class="section-number">03</span> About the data</span><span class="disclosure-icon" aria-hidden="true">+</span></summary><div class="source-grid"><div><h3>Monthly, with a longer view.</h3><p id="sourceCoverage">History from January 2010, where available. Every comparison uses the dates shared by the selected assets.</p></div><div><h3>Prices in perspective.</h3><p>Inflation uses Indonesia’s monthly consumer price index from the <a href="https://data.bis.org/topics/CPI" target="_blank" rel="noreferrer">BIS ↗</a><span>. Adjusted values show purchasing power in the starting month’s rupiah. Missing CPI months are excluded.</span></p><p>Biggest fall is the largest drop from an earlier peak in the selected period, using monthly data and the current measuring reference. Daily falls may be larger.</p><p>Stocks, indexes, crypto and currencies use monthly closes from <a href="https://finance.yahoo.com/" target="_blank" rel="noreferrer">Yahoo Finance ↗</a>. Commodities use monthly averages from the <a href="https://www.worldbank.org/en/research/commodity-markets" target="_blank" rel="noreferrer">World Bank ↗</a>.</p><p>Price movements exclude cash dividends and costs. Indexes and commodities are comparison proxies. Foreign assets are converted from their quote currency into the selected measuring currency. TSMC uses its US-listed ADR. The stock collection is curated; it does not represent historical index membership.</p></div></div></details>
     </main>
     <footer class="site-footer"><a href="./" class="brand">ID<span>Market</span></a><span>Different assets. A shared perspective.</span><span>Monthly data · Built for exploration</span></footer>
   </div>

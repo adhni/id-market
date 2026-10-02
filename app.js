@@ -1,9 +1,23 @@
 const COLORS = ["#5be3b1", "#82b7ff", "#efc66c", "#bb9df2", "#edac91", "#d9ff57", "#76d6dc", "#dfa5cf", "#abc6a0", "#c6cfe0"];
 const SERIES_COLORS = { IHSG: COLORS[0], BBCA: COLORS[1], GOLD: COLORS[2], USDIDR: COLORS[3], BBRI: COLORS[4], BMRI: COLORS[6], BBNI: COLORS[5], LQ45: COLORS[7], COAL: COLORS[2], ADRO: COLORS[0], PTBA: COLORS[1], ITMG: COLORS[3], NICKEL: COLORS[0], ANTM: COLORS[1], INCO: COLORS[6], MDKA: COLORS[3], SP500: COLORS[1], NASDAQ100: COLORS[5], ASX200: COLORS[2], NIKKEI: COLORS[3], HANGSENG: COLORS[7], NIFTY50: COLORS[5], STI: COLORS[4], KLCI: COLORS[1], AAPL: COLORS[3], MSFT: COLORS[6], NVDA: COLORS[2], TSM: COLORS[1], GOTO: COLORS[3], BTC: COLORS[4], ETH: COLORS[6], DBS: COLORS[2], CBA: COLORS[3], BHP: COLORS[3], ASII: COLORS[0], TOYOTA: COLORS[1], TSLA: COLORS[3] };
+const comparisonColors = new Map();
 function seriesColor(id) {
+  if (comparisonColors.has(id)) return comparisonColors.get(id);
   if (SERIES_COLORS[id]) return SERIES_COLORS[id];
   const hash = [...id].reduce((sum, char) => sum * 31 + char.charCodeAt(0), 0);
   return COLORS[Math.abs(hash) % COLORS.length];
+}
+function assignComparisonColors(ids) {
+  // Retain the colors of remaining lines; only new selections need a free color.
+  for (const id of comparisonColors.keys()) if (!ids.includes(id)) comparisonColors.delete(id);
+  const used = new Set(comparisonColors.values());
+  for (const id of ids) {
+    if (comparisonColors.has(id)) continue;
+    const preferred = seriesColor(id);
+    const color = !used.has(preferred) ? preferred : COLORS.find(candidate => !used.has(candidate)) || `hsl(${Math.round(used.size * 137.508) % 360} 65% 72%)`;
+    comparisonColors.set(id, color);
+    used.add(color);
+  }
 }
 function escapeHTML(value) {
   return String(value).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
@@ -12,6 +26,7 @@ const DEFAULT_SERIES = ["IHSG", "BBCA", "GOLD", "USDIDR"];
 const PRICE_GROWTH_BENCHMARK_IDS = ["IDR", "USDIDR", "EURIDR", "JPYIDR", "AUDIDR", "SGDIDR", "MYRIDR", "HKDIDR", "INRIDR", "GOLD", "OIL_WTI", "COAL", "NICKEL", "PALM_OIL", "RICE"];
 const RELATIVE_BENCHMARK_IDS = ["IDR", "USDIDR", "EURIDR", "JPYIDR", "AUDIDR", "SGDIDR", "MYRIDR", "HKDIDR", "INRIDR", "GOLD", "OIL_WTI"];
 const CHART_DIMS = { width: 1100, height: 520, pad: { top: 28, right: 28, bottom: 56, left: 78 } };
+let chartScale = null;
 const TROY_OUNCE_IN_GRAMS = 31.1034768;
 const BARREL_IN_LITERS = 158.987294928;
 const METRIC_TON_IN_KILOGRAMS = 1000;
@@ -29,6 +44,8 @@ const state = {
   endDate: null,
   allDates: [],
   hoverIndex: null,
+  chartPinned: false,
+  pinnedSeries: null,
   assetCategory: "all",
   assetCountry: "all",
   collection: "indonesia",
@@ -127,10 +144,28 @@ const BENCHMARK_DEFS = {
 
 const WORLD_MARKETS = ["IHSG", "SP500", "NASDAQ100", "ASX200", "STI", "KLCI", "NIKKEI", "HANGSENG", "NIFTY50"];
 const COLLECTIONS = {
-  indonesia: [["default", "Overview"], ["banks", "Banks"], ["gold", "Stocks vs gold"], ["commodities", "Coal"], ["nickel", "Nickel"], ["market", "Market indexes"]],
+  indonesia: [["default", "Overview"], ["gold", "Stocks vs gold"], ["banks", "Banks"], ["commodities", "Coal"], ["nickel", "Nickel"], ["market", "Market indexes"]],
   world: [["global", "Indonesia vs world"], ["neighbours", "Our neighbours"], ["asia", "Across Asia"], ["us", "US companies"]],
-  themes: [["globalbanks", "Banks across borders"], ["tech", "Technology"], ["digital", "Gold vs crypto"], ["resources", "Resources"], ["automotive", "Automotive"]],
+  themes: [["digital", "Gold vs crypto"], ["globalbanks", "Banks across borders"], ["tech", "Technology"], ["resources", "Resources"], ["automotive", "Automotive"]],
 };
+const PRESET_DESCRIPTIONS = {
+  default: "Stocks, gold and the dollar, side by side.",
+  gold: "How did Indonesian stocks compare with gold?",
+  banks: "Compare Indonesia’s four major banks.",
+  commodities: "Coal prices alongside Indonesian coal companies.",
+  nickel: "Nickel prices alongside Indonesian mining companies.",
+  market: "Indonesia’s broad market, leading stocks and Astra.",
+  global: "How did Indonesia compare with the US, Australia and Japan?",
+  neighbours: "Indonesia, Singapore and Malaysia on one chart.",
+  asia: "Compare Indonesia, Japan, Hong Kong and India.",
+  us: "US market indexes alongside Apple and Microsoft.",
+  digital: "Gold, Bitcoin and Ethereum. How different were their paths?",
+  globalbanks: "Compare BBCA, DBS and Commonwealth Bank.",
+  tech: "Nvidia, Microsoft, TSMC and GoTo, side by side.",
+  resources: "Mining companies, nickel and gold on one chart.",
+  automotive: "Compare Astra, Toyota and Tesla.",
+};
+const CURRENCY_IDS = ["IDR", "USDIDR", "EURIDR", "AUDIDR", "SGDIDR", "MYRIDR", "JPYIDR", "HKDIDR", "INRIDR"];
 for (const [currency, label] of Object.entries({ AUD: "Australian Dollar", SGD: "Singapore Dollar", MYR: "Malaysian Ringgit", HKD: "Hong Kong Dollar", INR: "Indian Rupee" })) {
   const id = currency + "IDR";
   BENCHMARK_DEFS[id] = { label: `${label} (${currency})`, displayUnit: currency, refs: [id],
@@ -150,7 +185,7 @@ function renderCollections() {
     button.setAttribute("aria-pressed", active);
   });
   document.getElementById("presetButtons").innerHTML = COLLECTIONS[state.collection].map(([id, label]) =>
-    `<button type="button" data-preset="${id}" aria-pressed="${state.activePreset === id}" class="${state.activePreset === id ? "active" : ""}">${t(label)}</button>`).join("");
+    `<button type="button" data-preset="${id}" title="${escapeHTML(t(PRESET_DESCRIPTIONS[id]))}" aria-pressed="${state.activePreset === id}" class="${state.activePreset === id ? "active" : ""}">${t(label)}</button>`).join("");
   document.getElementById("worldOverview").hidden = state.collection !== "world";
 }
 
@@ -287,6 +322,10 @@ function setupControls() {
     state.hoverIndex = null;
     render();
   });
+  document.getElementById("currencySelect").addEventListener("change", (event) => {
+    state.benchmark = event.target.value;
+    render();
+  });
   document.getElementById("stockToggleSearch").addEventListener("input", renderStockToggleDropdown);
   for (const field of ["startDate", "endDate"]) {
     document.getElementById(field).addEventListener("change", (event) => {
@@ -300,6 +339,8 @@ function setupControls() {
   document.getElementById("resetSelections").addEventListener("click", () => {
     state.inflation = false;
     state.resultMode = "percent";
+    state.mode = "growth";
+    state.benchmark = "IDR";
     state.assetCategory = "all";
     state.assetCountry = "all";
     state.collection = "indonesia";
@@ -307,6 +348,7 @@ function setupControls() {
     renderCollections();
     document.getElementById("stockToggleSearch").value = "";
     document.querySelectorAll(".toolbar details").forEach((el) => { el.open = false; });
+    document.getElementById("moreOptions").open = false;
     applyPreset("default");
     applyTimeframe("3Y");
   });
@@ -327,6 +369,7 @@ function setupControls() {
     button.addEventListener("click", () => {
       state.resultMode = button.dataset.result;
       renderSummary(state.lastDisplay.series);
+      updateCopy();
     });
   });
   for (const [button, panel] of [["closeAssetPicker", "stockToggleDropdown"], ["closeDatePicker", "customDates"]]) {
@@ -338,17 +381,30 @@ function setupControls() {
   document.querySelectorAll(".toolbar details").forEach((panel) => {
     panel.addEventListener("toggle", () => {
       if (panel.open) {
+        document.getElementById("moreOptions").open = false;
         document.querySelectorAll(".toolbar details").forEach((other) => { if (other !== panel) other.open = false; });
         if (panel.id === "stockToggleDropdown") document.getElementById("stockToggleSearch").focus();
       }
     });
   });
+  document.getElementById("moreOptions").addEventListener("toggle", (event) => {
+    if (event.target.open) document.querySelectorAll(".toolbar details").forEach(panel => { panel.open = false; });
+  });
   document.addEventListener("click", (event) => {
     document.querySelectorAll(".toolbar details[open]").forEach((panel) => {
       if (!panel.contains(event.target)) panel.open = false;
     });
+    const options = document.getElementById("moreOptions");
+    if (!options.contains(event.target)) options.open = false;
+    if (state.chartPinned && !document.getElementById("chartStage").contains(event.target)) clearChartPoint();
   });
+  document.getElementById("dismissChartDetails").addEventListener("click", dismissChartDetails);
   document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") dismissChartDetails();
+    if (event.key === "Escape" && document.getElementById("moreOptions").open) {
+      document.getElementById("moreOptions").open = false;
+      document.querySelector("#moreOptions summary").focus();
+    }
     if (event.key === "Escape") document.querySelectorAll(".toolbar details[open]").forEach((panel) => {
       panel.open = false;
       panel.querySelector("summary").focus();
@@ -386,10 +442,6 @@ function applyPreset(preset) {
     clear: [],
   };
   state.selectedSeries = new Set((presetMap[preset] || []).filter((id) => state.metadataMap.has(id)));
-  if (preset !== "clear") {
-    state.mode = "growth";
-    state.benchmark = "IDR";
-  }
   state.hoverIndex = null;
   state.activePreset = preset === "clear" ? null : preset;
   state.highlightedSeries = null;
@@ -662,6 +714,17 @@ function updateControlVisibility() {
   if (benchmarkLabel) {
     benchmarkLabel.textContent = isRelative ? t("Compare against") : t("Measure in");
   }
+  const currencySelect = document.getElementById("currencySelect");
+  currencySelect.replaceChildren(...CURRENCY_IDS.filter(id => id === "IDR" || state.metadataMap.has(id))
+    .map(id => new Option(getBenchmarkLabel(id), id)));
+  const customReference = !CURRENCY_IDS.includes(state.benchmark);
+  if (customReference) {
+    const option = new Option(getBenchmarkLabel(), state.benchmark);
+    option.disabled = true;
+    currencySelect.add(option);
+  }
+  currencySelect.value = state.benchmark;
+  document.getElementById("currencyLabel").textContent = customReference || isRelative ? t("Reference") : t("Currency");
 
   document.querySelectorAll("#modeButtons .mode-button").forEach((button) => {
     const isActive = button.dataset.mode === state.mode;
@@ -671,6 +734,11 @@ function updateControlVisibility() {
 }
 
 function render() {
+  state.hoverIndex = null;
+  state.chartPinned = false;
+  state.pinnedSeries = null;
+  state.highlightedSeries = null;
+  assignComparisonColors([...state.selectedSeries]);
   updateControlVisibility();
   updateCopy();
   renderStockToggleDropdown();
@@ -683,6 +751,8 @@ function render() {
   renderDiagnostics(display);
   updateSnapshot(display);
   renderWorldOverview();
+  const visiblePreset = COLLECTIONS[state.collection].some(([id]) => id === state.activePreset);
+  document.getElementById("presetDescription").textContent = t(visiblePreset ? PRESET_DESCRIPTIONS[state.activePreset] : "Pick a comparison, or build your own.");
   document.querySelectorAll("#presetButtons button").forEach((button) => {
     const active = button.dataset.preset === state.activePreset;
     button.classList.toggle("active", active);
@@ -702,6 +772,14 @@ function updateCopy() {
   document.getElementById("chartSubtitle").textContent = price ? t("Monthly prices in {0}.", label) : relative ? t("Above 100 = ahead of the benchmark.") : t("All assets start at 100. A value of 120 means a 20% increase.");
   if (inflationActive()) document.getElementById("chartSubtitle").textContent = t("Starts at 100, after Indonesian inflation. Values reflect the starting month’s purchasing power.");
   document.getElementById("chartBasis").textContent = `${price ? t("PRICE") : t("BASE 100")} / ${t(getBenchmarkDef()?.displayUnit || "") || state.metadataMap.get(state.benchmark)?.short_name || state.benchmark}`;
+  const settings = [relative ? t("Vs benchmark") : price ? t("Price") : t("Growth"), label];
+  if (inflationActive()) settings.push(t("After inflation"));
+  if (state.resultMode === "drawdown") settings.push(t("Biggest fall"));
+  document.getElementById("comparisonSettings").textContent = settings.join(" · ");
+  const advanced = Number(state.mode !== "growth") + Number(!CURRENCY_IDS.includes(state.benchmark)) + Number(inflationActive()) + Number(state.resultMode === "drawdown");
+  const count = document.getElementById("advancedCount");
+  count.hidden = !advanced;
+  count.textContent = t("{0} active", advanced);
 }
 
 function updateSnapshot(display) {
@@ -727,10 +805,15 @@ function highlightSeries(id) {
 }
 
 function bindHighlight(element, id) {
-  element.addEventListener("mouseenter", () => highlightSeries(id));
-  element.addEventListener("mouseleave", () => highlightSeries(null));
-  element.addEventListener("focusin", () => highlightSeries(id));
-  element.addEventListener("focusout", () => highlightSeries(null));
+  element.addEventListener("mouseenter", () => { if (!state.pinnedSeries) highlightSeries(id); });
+  element.addEventListener("mouseleave", () => highlightSeries(state.pinnedSeries));
+  element.addEventListener("focusin", () => { if (!state.pinnedSeries) highlightSeries(id); });
+  element.addEventListener("focusout", () => highlightSeries(state.pinnedSeries));
+  const button = element.matches("button") ? element : element.querySelector(".asset-result");
+  button.addEventListener("click", () => {
+    state.pinnedSeries = state.pinnedSeries === id ? null : id;
+    highlightSeries(state.pinnedSeries);
+  });
 }
 
 function renderLegend(displaySeries) {
@@ -752,22 +835,25 @@ function renderSummary(displaySeries) {
   const host = document.getElementById("comparisonResults");
   const moneyAvailable = state.mode === "growth" && state.benchmark === "IDR";
   if (!moneyAvailable && state.resultMode === "money") state.resultMode = "percent";
-  const money = state.resultMode === "money";
+  const money = moneyAvailable && state.resultMode !== "drawdown";
   const drawdown = state.resultMode === "drawdown";
-  document.querySelector('[data-result="money"]').disabled = !moneyAvailable;
-  document.querySelector('[data-result="money"]').title = moneyAvailable ? t("Value following each asset from Rp1 million") : t("Available in Growth measured in Rupiah");
   document.querySelectorAll("#resultMode button").forEach((button) => {
-    const active = button.dataset.result === state.resultMode;
+    const active = button.dataset.result === (drawdown ? "drawdown" : "percent");
     button.classList.toggle("active", active);
     button.setAttribute("aria-pressed", active);
   });
-  document.getElementById("resultContext").textContent = money ? t("If Rp1 million followed each asset") : t("Change in {0} terms", getBenchmarkLabel());
+  document.getElementById("resultContext").textContent = money ? t("If Rp1 million followed each asset") : state.mode === "price" && !drawdown ? t("Latest price in {0}", getBenchmarkLabel()) : state.mode === "relative" && !drawdown ? t("Change against {0}", getBenchmarkLabel()) : t("Change in {0} terms", getBenchmarkLabel());
   document.getElementById("comparisonNote").textContent = money ? t("An illustration of price movement, excluding dividends and costs. Indexes and commodities are proxies.") : t("Price movement only. Dividends and costs excluded.");
   if (drawdown) {
     document.getElementById("resultContext").textContent = t("Largest fall from a previous peak");
     document.getElementById("comparisonNote").textContent = t("Within this period, using monthly data. Daily falls may be larger. Closer to 0% means a smaller fall.");
   }
   if (inflationActive()) document.getElementById("resultContext").textContent += " · " + t("After inflation");
+  const dates = state.lastDisplay.dates;
+  document.getElementById("resultWindow").textContent = dates.length ? `${formatMonth(dates[0])} — ${formatMonth(dates.at(-1))}` : "";
+  const takeaway = document.getElementById("comparisonTakeaway");
+  takeaway.hidden = !displaySeries.length;
+  takeaway.textContent = describeComparison(displaySeries);
   host.innerHTML = "";
   if (!displaySeries.length) {
     host.innerHTML = `<p class="results-empty">${t("Your results will appear here once there is a comparison to show.")}</p>`;
@@ -777,16 +863,17 @@ function renderSummary(displaySeries) {
     const values = series.values.map((point) => point.value);
     const ratio = values.at(-1) / values[0];
     const pct = drawdown ? maxDrawdown(values) : (ratio - 1) * 100;
-    const formatted = money ? `Rp${Math.round(1000000 * ratio).toLocaleString(locale())}` : `${pct >= 0 ? "+" : ""}${decimal(pct, 1)}%`;
+    const percent = `${pct >= 0 ? "+" : ""}${decimal(pct, 1)}%`;
+    const formatted = money ? `Rp${Math.round(1000000 * ratio).toLocaleString(locale())}` : state.mode === "price" && !drawdown ? formatRawValue(values.at(-1)) : percent;
     const min = Math.min(...values), span = Math.max(...values) - min || 1;
     const points = values.map((value, index) => `${index / Math.max(values.length - 1, 1) * 70},${22 - (value - min) / span * 20}`).join(" ");
     const row = document.createElement("div");
     row.className = "comparison-row";
     row.dataset.series = series.id;
-    row.innerHTML = `<button class="asset-result" type="button" aria-label="${t("Highlight")} ${escapeHTML(t(series.meta.short_name))}: ${formatted}">
+    row.innerHTML = `<button class="asset-result" type="button" aria-label="${t("Highlight")} ${escapeHTML(t(series.meta.short_name))}: ${formatted}${money || state.mode === "price" && !drawdown ? `, ${percent}` : ""}">
       <span class="result-name"><span class="legend-swatch" style="background:${seriesColor(series.id)}"></span><strong>${escapeHTML(t(series.meta.short_name))}</strong></span>
-      <strong class="result-value ${money ? "" : valueTone(pct)}">${formatted}</strong>
-      <span class="result-company">${escapeHTML(t(series.meta.display_name))} · ${escapeHTML(series.meta.currency || "IDR")}</span>
+      <span class="result-metrics">${money ? `<span class="result-start">${t("Rp1m")} <span aria-hidden="true">→</span></span>` : ""}<strong class="result-value ${money || state.mode === "price" && !drawdown ? "" : valueTone(pct)}">${formatted}</strong>${money || state.mode === "price" && !drawdown ? `<span class="result-growth ${valueTone(pct)}">${percent}</span>` : ""}</span>
+      <span class="result-company">${escapeHTML(t(series.meta.display_name))}</span>
       <svg class="sparkline" viewBox="0 0 72 24" aria-hidden="true"><polyline points="${points}" fill="none" stroke="${seriesColor(series.id)}" stroke-width="1.4" /></svg>
       </button><button class="remove-asset" type="button" aria-label="${t("Remove")} ${escapeHTML(t(series.meta.short_name))}">×</button>`;
     row.querySelector(".remove-asset").addEventListener("click", () => {
@@ -799,6 +886,23 @@ function renderSummary(displaySeries) {
     bindHighlight(row, series.id);
     host.appendChild(row);
   }
+}
+
+function describeComparison(series) {
+  if (!series.length) return "";
+  const drawdown = state.resultMode === "drawdown";
+  const results = series.map(entry => ({
+    name: t(entry.meta.short_name),
+    change: drawdown ? maxDrawdown(entry.values.map(point => point.value)) : (entry.values.at(-1).value / entry.values[0].value - 1) * 100,
+  })).sort((a, b) => b.change - a.change);
+  const first = results[0];
+  const percent = `${first.change > 0 ? "+" : ""}${decimal(first.change, 1)}%`;
+  if (drawdown) return t("Smallest fall from a peak: {0} ({1}).", first.name, percent);
+  const describe = result => Math.abs(result.change) < 0.05 ? t("{0} was almost unchanged.", result.name) : t(result.change > 0 ? "{0} rose {1}." : "{0} fell {1}.", result.name, `${decimal(Math.abs(result.change), 1)}%`);
+  let text = describe(first);
+  const last = results.at(-1);
+  if (results.length > 1 && first.change - last.change >= 0.05) text += " " + describe(last);
+  return text;
 }
 
 function renderDiagnostics(display) {
@@ -1055,6 +1159,8 @@ function renderChart(display) {
   const emptyState = document.getElementById("chartEmptyState");
   const stage = document.getElementById("chartStage");
   svg.innerHTML = "";
+  chartScale = null;
+  document.getElementById("dismissChartDetails").hidden = !state.chartPinned;
   hideTooltip();
 
   CHART_DIMS.width = Math.max(320, stage.clientWidth);
@@ -1095,6 +1201,7 @@ function renderChart(display) {
 
   const x = (index) => pad.left + (index / Math.max(dates.length - 1, 1)) * chartWidth;
   const y = (value) => pad.top + (1 - ((value - min) / span)) * chartHeight;
+  chartScale = { x, y, chartWidth };
 
   svg.insertAdjacentHTML("beforeend", `<rect x="${pad.left}" y="${pad.top}" width="${chartWidth}" height="${chartHeight}" rx="20" fill="#0b1814"></rect>`);
 
@@ -1114,15 +1221,8 @@ function renderChart(display) {
     `);
   }
 
-  const step = Math.max(1, Math.floor(dates.length / (width < 640 ? 3 : 6)));
-  const labelIndexes = dates
-    .map((_, index) => index)
-    .filter((index) => index % step === 0 || index === dates.length - 1);
-  if (labelIndexes.length >= 2) {
-    const last = labelIndexes[labelIndexes.length - 1];
-    const previous = labelIndexes[labelIndexes.length - 2];
-    if (last - previous <= 1) labelIndexes.splice(labelIndexes.length - 2, 1);
-  }
+  const labelCount = Math.min(dates.length, width < 480 ? 3 : width < 640 ? 4 : 7);
+  const labelIndexes = Array.from({length: labelCount}, (_, index) => Math.round(index * (dates.length - 1) / Math.max(labelCount - 1, 1)));
   labelIndexes.forEach((index) => {
     const date = dates[index];
     const xx = x(index);
@@ -1143,41 +1243,81 @@ function renderChart(display) {
       <g class="series-line" data-series="${series.id}">
       <polyline fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" points="${points}" />
       <circle cx="${x(series.values.length - 1)}" cy="${y(lastPoint.value)}" r="3" fill="${color}" />
-      <circle cx="${x(hoverIndex)}" cy="${y(hoverPoint.value)}" r="${state.hoverIndex == null ? 0 : 4}" fill="#0b1814" stroke="${color}" stroke-width="2" /></g>
+      <circle class="hover-point" cx="${x(hoverIndex)}" cy="${y(hoverPoint.value)}" r="${state.hoverIndex == null ? 0 : 4}" fill="#0b1814" stroke="${color}" stroke-width="2" /></g>
     `);
   });
 
   const hoverX = x(hoverIndex);
   svg.insertAdjacentHTML("beforeend", `
-    <line opacity="${state.hoverIndex == null ? 0 : 1}" x1="${hoverX}" y1="${pad.top}" x2="${hoverX}" y2="${height - pad.bottom}" stroke="rgba(154,187,175,0.35)" stroke-dasharray="4 5" />
-    <rect id="chartOverlay" x="${pad.left}" y="${pad.top}" width="${chartWidth}" height="${chartHeight}" fill="transparent" style="cursor:crosshair"></rect>
+    <line id="chartCursor" opacity="${state.hoverIndex == null ? 0 : 1}" x1="${hoverX}" y1="${pad.top}" x2="${hoverX}" y2="${height - pad.bottom}" stroke="rgba(154,187,175,0.35)" stroke-dasharray="4 5" />
+    <rect id="chartOverlay" tabindex="0" role="slider" aria-label="${t("Explore monthly chart")}" aria-valuemin="0" aria-valuemax="${dates.length - 1}" aria-valuenow="${hoverIndex}" aria-valuetext="${formatMonth(dates[hoverIndex])}" x="${pad.left}" y="${pad.top}" width="${chartWidth}" height="${chartHeight}" fill="transparent" style="cursor:crosshair;touch-action:pan-y"></rect>
   `);
 
   const overlay = document.getElementById("chartOverlay");
-  overlay.addEventListener("mousemove", (event) => onChartHover(event, chartWidth, x));
+  overlay.addEventListener("mousemove", (event) => { if (!state.chartPinned) onChartHover(event); });
   overlay.addEventListener("mouseleave", () => {
-    state.hoverIndex = null;
-    renderChart(state.lastDisplay);
+    if (!state.chartPinned) clearChartPoint();
   });
-  overlay.addEventListener("touchstart", (event) => onChartHover(event.touches[0], chartWidth, x), { passive: true });
-  overlay.addEventListener("touchmove", (event) => onChartHover(event.touches[0], chartWidth, x), { passive: true });
+  overlay.addEventListener("click", (event) => {
+    state.chartPinned = true;
+    onChartHover(event);
+  });
+  overlay.addEventListener("keydown", (event) => {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    const index = event.key === "Home" ? 0 : event.key === "End" ? dates.length - 1 : (state.hoverIndex ?? dates.length - 1) + (event.key === "ArrowLeft" ? -1 : 1);
+    state.chartPinned = true;
+    showChartPoint(Math.max(0, Math.min(index, dates.length - 1)));
+  });
+  document.getElementById("dismissChartDetails").hidden = !state.chartPinned;
 
   if (state.hoverIndex != null) renderTooltip(display, hoverIndex, hoverX);
   highlightSeries(state.highlightedSeries);
 }
 
-function onChartHover(event, chartWidth, xScale) {
+function onChartHover(event) {
+  if (!chartScale || !state.lastDisplay.dates.length) return;
+  const { chartWidth } = chartScale;
   const svg = document.getElementById("chart");
   const bounds = svg.getBoundingClientRect();
   const relativeX = Math.max(0, Math.min(chartWidth, ((event.clientX - bounds.left) / bounds.width) * CHART_DIMS.width - CHART_DIMS.pad.left));
   const ratio = chartWidth ? relativeX / chartWidth : 0;
   const index = Math.round(ratio * Math.max(state.lastDisplay.dates.length - 1, 0));
-  if (index !== state.hoverIndex) {
-    state.hoverIndex = index;
-    renderChart(state.lastDisplay);
-    return;
-  }
-  renderTooltip(state.lastDisplay, index, xScale(index));
+  showChartPoint(index);
+}
+
+function showChartPoint(index) {
+  const { x, y } = chartScale;
+  state.hoverIndex = index;
+  document.querySelectorAll("#chart .hover-point").forEach((point, seriesIndex) => {
+    point.setAttribute("cx", x(index));
+    point.setAttribute("cy", y(state.lastDisplay.series[seriesIndex].values[index].value));
+    point.setAttribute("r", "4");
+  });
+  const cursor = document.getElementById("chartCursor");
+  cursor.setAttribute("x1", x(index));
+  cursor.setAttribute("x2", x(index));
+  cursor.setAttribute("opacity", "1");
+  const overlay = document.getElementById("chartOverlay");
+  overlay.setAttribute("aria-valuenow", index);
+  overlay.setAttribute("aria-valuetext", formatMonth(state.lastDisplay.dates[index]));
+  document.getElementById("dismissChartDetails").hidden = !state.chartPinned;
+  renderTooltip(state.lastDisplay, index, x(index));
+}
+
+function clearChartPoint() {
+  state.hoverIndex = null;
+  state.chartPinned = false;
+  document.querySelectorAll("#chart .hover-point").forEach(point => point.setAttribute("r", "0"));
+  document.getElementById("chartCursor")?.setAttribute("opacity", "0");
+  document.getElementById("dismissChartDetails").hidden = true;
+  hideTooltip();
+}
+
+function dismissChartDetails() {
+  clearChartPoint();
+  state.pinnedSeries = null;
+  highlightSeries(null);
 }
 
 function renderTooltip(display, index, xPos) {
@@ -1195,7 +1335,7 @@ function renderTooltip(display, index, xPos) {
     const deltaPct = ((point.value / start) - 1) * 100;
     return `
       <div class="tooltip-row">
-        <span class="tooltip-series"><span class="legend-swatch" style="background:${seriesColor(series.id)}"></span>${t(series.meta.short_name)}</span>
+        <span class="tooltip-series"><span class="legend-swatch" style="background:${seriesColor(series.id)}"></span>${escapeHTML(t(series.meta.short_name))}</span>
         <span class="tooltip-value">${formatTooltipValue(point.value, series.rawUnit)}</span>
         <span class="${deltaPct >= 0 ? "positive" : "negative"}">${deltaPct >= 0 ? "+" : ""}${decimal(deltaPct, 1)}%</span>
       </div>
@@ -1203,15 +1343,19 @@ function renderTooltip(display, index, xPos) {
   }).join("");
 
   tooltip.innerHTML = `
-    <div class="tooltip-date">${formatMonth(date)}</div>
+    <div class="tooltip-date">${formatMonth(date)}${state.chartPinned ? `<span class="tooltip-pinned">${t("Pinned")}</span>` : ""}</div>
     ${rows}
   `;
   tooltip.setAttribute("aria-hidden", "false");
+  tooltip.classList.toggle("is-pinned", state.chartPinned);
 
   const stageWidth = stage.clientWidth;
   const left = (xPos / CHART_DIMS.width) * stageWidth;
   tooltip.style.left = `${Math.max(8, Math.min(left + 18, stageWidth - tooltip.offsetWidth - 8))}px`;
   tooltip.style.top = "16px";
+  const close = document.getElementById("dismissChartDetails");
+  close.style.left = `${parseFloat(tooltip.style.left) + tooltip.offsetWidth - 48}px`;
+  close.style.top = "17px";
 }
 
 function hideTooltip() {
@@ -1312,6 +1456,7 @@ function restoreComparison(hash) {
   if (["percent", "money", "drawdown"].includes(params.get("result"))) state.resultMode = params.get("result");
   if (Object.hasOwn(COLLECTIONS, params.get("collection"))) state.collection = params.get("collection");
   state.inflation = params.get("inflation") === "1";
+  document.getElementById("moreOptions").open = state.mode !== "growth" || !CURRENCY_IDS.includes(state.benchmark) || inflationActive() || state.resultMode === "drawdown";
   state.activePreset = null;
   populateDateSelects(); syncTimeframeButtons(null); renderCollections(); render();
 }
