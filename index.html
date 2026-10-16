@@ -9,6 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="theme.js"></script>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -16,7 +17,7 @@
   <div class="app-shell">
     <header class="site-header">
       <a href="./" class="brand" aria-label="ID Market home"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 28 28"><path d="M4 20 10 14 15 17 24 6"/><path d="M17 6h7v7"/></svg></span>ID<span>Market</span></a>
-      <div class="header-right"><button id="shareComparison" type="button" class="text-button">Share</button><div class="segmented language-toggle" role="group" aria-label="Language"><button type="button" data-language="en" lang="en" aria-label="English" aria-pressed="true" class="active">EN</button><button type="button" data-language="id" lang="id" aria-label="Bahasa Indonesia" aria-pressed="false">ID</button></div><a class="quiet-link" href="#dataSources">About the data <span aria-hidden="true">↗</span></a><span class="data-status"><i aria-hidden="true"></i><span id="dataCoverage">Monthly history</span></span></div>
+      <div class="header-right"><button id="themeToggle" class="theme-toggle" type="button" aria-label="Switch to light mode" title="Switch to light mode"><svg class="theme-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg><svg class="theme-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 15.5A9 9 0 0 1 8.5 4a9 9 0 1 0 11.5 11.5Z"/></svg></button><button id="shareComparison" type="button" class="text-button">Share</button><div class="segmented language-toggle" role="group" aria-label="Language"><button type="button" data-language="en" lang="en" aria-label="English" aria-pressed="true" class="active">EN</button><button type="button" data-language="id" lang="id" aria-label="Bahasa Indonesia" aria-pressed="false">ID</button></div><a class="quiet-link" href="#dataSources">About the data <span aria-hidden="true">↗</span></a><span class="data-status"><i aria-hidden="true"></i><span id="dataCoverage">Monthly history</span></span></div>
     </header>
 
     <main>

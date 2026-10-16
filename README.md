@@ -15,6 +15,8 @@ Live site: https://adhni.github.io/id-market/
 - **Company fundamentals:** selected Indonesian stocks show market cap in Rupiah, trailing P/E, P/B, trailing ROE and trailing ROA from IDX. Official sector and industry appear below the company name. Market cap sits above a two-column valuation/profitability grid. Index memberships and non-bank liabilities/equity sit inside each card’s expandable Company details; banks do not show this leverage ratio. These are the latest collected snapshots, independent of chart dates, currency, and inflation. All 50 Indonesian stocks are covered. International stocks show a coverage note. Definitions are expandable; nonpositive P/E and P/B are shown as not meaningful, and missing values are distinct from zero. ROE is also suppressed when negative P/B indicates negative equity; a rounded zero P/B is not used to infer the equity sign.
 - **Share:** copies a versioned link with assets, dates, view, reference, inflation, results tab, collection, and language. Local previews generate public-site links, usable once the change is deployed.
 
+- **Light / dark:** the sun/moon button in the header switches the complete interface and chart palette. Dark is the default; your choice is saved locally, including when opening the page offline.
+
 - **EN / ID** in the header switches the interface between English and Indonesian, including dates, numbers, asset search, and chart details. Your choice is remembered locally; the first visit follows your browser language (English fallback). Switching keeps the active comparison intact.
 
 - **62 stocks** (50 Indonesian + 12 international), **10 indexes**, **8 currencies**, **12 commodities**, and **Bitcoin + Ethereum**: 94 selectable lines.

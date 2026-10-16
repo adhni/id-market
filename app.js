@@ -1,4 +1,4 @@
-const COLORS = ["#5be3b1", "#82b7ff", "#efc66c", "#bb9df2", "#edac91", "#d9ff57", "#76d6dc", "#dfa5cf", "#abc6a0", "#c6cfe0"];
+const COLORS = Array.from({length: 10}, (_, index) => `var(--series-${index + 1})`);
 const SERIES_COLORS = { IHSG: COLORS[0], BBCA: COLORS[1], GOLD: COLORS[2], USDIDR: COLORS[3], BBRI: COLORS[4], BMRI: COLORS[6], BBNI: COLORS[5], LQ45: COLORS[7], COAL: COLORS[2], ADRO: COLORS[0], PTBA: COLORS[1], ITMG: COLORS[3], NICKEL: COLORS[0], ANTM: COLORS[1], INCO: COLORS[6], MDKA: COLORS[3], SP500: COLORS[1], NASDAQ100: COLORS[5], ASX200: COLORS[2], NIKKEI: COLORS[3], HANGSENG: COLORS[7], NIFTY50: COLORS[5], STI: COLORS[4], KLCI: COLORS[1], AAPL: COLORS[3], MSFT: COLORS[6], NVDA: COLORS[2], TSM: COLORS[1], GOTO: COLORS[3], BTC: COLORS[4], ETH: COLORS[6], DBS: COLORS[2], CBA: COLORS[3], BHP: COLORS[3], ASII: COLORS[0], TOYOTA: COLORS[1], TSLA: COLORS[3] };
 const comparisonColors = new Map();
 function seriesColor(id) {
@@ -1164,10 +1164,10 @@ function renderMiniChart(svgId, diagnostics, config) {
   })).filter((line) => line.points.length);
   const allPoints = lines.flatMap((line) => line.points);
 
-  svg.insertAdjacentHTML("beforeend", `<rect x="0" y="0" width="${width}" height="${height}" rx="14" fill="#0b1814"></rect>`);
+  svg.insertAdjacentHTML("beforeend", `<rect x="0" y="0" width="${width}" height="${height}" rx="14" fill="var(--raised)"></rect>`);
 
   if (!allPoints.length) {
-    svg.insertAdjacentHTML("beforeend", `<text x="${width / 2}" y="${height / 2}" text-anchor="middle" fill="#91a49d" font-size="13">${t("Need more months")}</text>`);
+    svg.insertAdjacentHTML("beforeend", `<text x="${width / 2}" y="${height / 2}" text-anchor="middle" fill="var(--muted)" font-size="13">${t("Need more months")}</text>`);
     return;
   }
 
@@ -1186,19 +1186,19 @@ function renderMiniChart(svgId, diagnostics, config) {
   buildTicks(min, max, 4).forEach((tick) => {
     const yy = y(tick);
     svg.insertAdjacentHTML("beforeend", `
-      <line x1="${pad.left}" y1="${yy}" x2="${width - pad.right}" y2="${yy}" stroke="rgba(154,187,175,0.12)" />
-      <text x="${pad.left - 10}" y="${yy + 4}" text-anchor="end" fill="#91a49d" font-size="10">${formatTick(tick)}</text>
+      <line x1="${pad.left}" y1="${yy}" x2="${width - pad.right}" y2="${yy}" stroke="var(--chart-grid)" />
+      <text x="${pad.left - 10}" y="${yy + 4}" text-anchor="end" fill="var(--muted)" font-size="10">${formatTick(tick)}</text>
     `);
   });
 
   const zeroY = y(0);
-  svg.insertAdjacentHTML("beforeend", `<line x1="${pad.left}" y1="${zeroY}" x2="${width - pad.right}" y2="${zeroY}" stroke="rgba(154,187,175,0.35)" stroke-dasharray="4 5" />`);
+  svg.insertAdjacentHTML("beforeend", `<line x1="${pad.left}" y1="${zeroY}" x2="${width - pad.right}" y2="${zeroY}" stroke="var(--chart-reference)" stroke-dasharray="4 5" />`);
 
   const dateLabels = [dates[0], dates[Math.floor((dates.length - 1) / 2)], dates[dates.length - 1]].filter(Boolean);
   [...new Set(dateLabels)].forEach((date) => {
     const xx = x(date);
     const anchor = date === dates[0] ? "start" : (date === dates[dates.length - 1] ? "end" : "middle");
-    svg.insertAdjacentHTML("beforeend", `<text x="${xx}" y="${height - 12}" text-anchor="${anchor}" fill="#91a49d" font-size="10">${formatMonth(date)}</text>`);
+    svg.insertAdjacentHTML("beforeend", `<text x="${xx}" y="${height - 12}" text-anchor="${anchor}" fill="var(--muted)" font-size="10">${formatMonth(date)}</text>`);
   });
 
   lines.forEach((line) => {
@@ -1231,8 +1231,8 @@ function renderMiniChart(svgId, diagnostics, config) {
     }).filter((row) => Number.isFinite(row.value));
 
     hoverLayer.innerHTML = `
-      <line x1="${xx}" y1="${pad.top}" x2="${xx}" y2="${height - pad.bottom}" stroke="rgba(154,187,175,0.35)" stroke-dasharray="4 5" />
-      ${rows.map((row) => `<circle cx="${xx}" cy="${y(row.value)}" r="4.5" fill="#0b1814" stroke="${row.color}" stroke-width="2.5" />`).join("")}
+      <line x1="${xx}" y1="${pad.top}" x2="${xx}" y2="${height - pad.bottom}" stroke="var(--chart-reference)" stroke-dasharray="4 5" />
+      ${rows.map((row) => `<circle cx="${xx}" cy="${y(row.value)}" r="4.5" fill="var(--raised)" stroke="${row.color}" stroke-width="2.5" />`).join("")}
     `;
     renderDiagnosticTooltip(svg, pointer, metricLabel, date, rows, formatValue);
   };
@@ -1364,13 +1364,13 @@ function renderChart(display) {
   const y = (value) => pad.top + (1 - ((value - min) / span)) * chartHeight;
   chartScale = { x, y, chartWidth };
 
-  svg.insertAdjacentHTML("beforeend", `<rect x="${pad.left}" y="${pad.top}" width="${chartWidth}" height="${chartHeight}" rx="20" fill="#0b1814"></rect>`);
+  svg.insertAdjacentHTML("beforeend", `<rect x="${pad.left}" y="${pad.top}" width="${chartWidth}" height="${chartHeight}" rx="20" fill="var(--raised)"></rect>`);
 
   ticks.forEach((tick) => {
     const yy = y(tick);
     svg.insertAdjacentHTML("beforeend", `
-      <line x1="${pad.left}" y1="${yy}" x2="${width - pad.right}" y2="${yy}" stroke="rgba(154,187,175,0.12)" />
-      <text x="${pad.left - 14}" y="${yy + 4}" text-anchor="end" fill="#91a49d" font-size="12">${formatAxis(tick)}</text>
+      <line x1="${pad.left}" y1="${yy}" x2="${width - pad.right}" y2="${yy}" stroke="var(--chart-grid)" />
+      <text x="${pad.left - 14}" y="${yy + 4}" text-anchor="end" fill="var(--muted)" font-size="12">${formatAxis(tick)}</text>
     `);
   });
 
@@ -1378,7 +1378,7 @@ function renderChart(display) {
   if (referenceValue != null && referenceValue >= min && referenceValue <= max) {
     const yy = y(referenceValue);
     svg.insertAdjacentHTML("beforeend", `
-      <line x1="${pad.left}" y1="${yy}" x2="${width - pad.right}" y2="${yy}" stroke="rgba(154,187,175,0.35)" stroke-dasharray="5 5" />
+      <line x1="${pad.left}" y1="${yy}" x2="${width - pad.right}" y2="${yy}" stroke="var(--chart-reference)" stroke-dasharray="5 5" />
     `);
   }
 
@@ -1389,8 +1389,8 @@ function renderChart(display) {
     const xx = x(index);
     const anchor = index === 0 ? "start" : (index === dates.length - 1 ? "end" : "middle");
     svg.insertAdjacentHTML("beforeend", `
-      <line x1="${xx}" y1="${height - pad.bottom + 6}" x2="${xx}" y2="${height - pad.bottom + 12}" stroke="rgba(154,187,175,0.25)" />
-      <text x="${xx}" y="${height - 18}" text-anchor="${anchor}" fill="#91a49d" font-size="12">${formatMonth(date)}</text>
+      <line x1="${xx}" y1="${height - pad.bottom + 6}" x2="${xx}" y2="${height - pad.bottom + 12}" stroke="var(--line)" />
+      <text x="${xx}" y="${height - 18}" text-anchor="${anchor}" fill="var(--muted)" font-size="12">${formatMonth(date)}</text>
     `);
   });
 
@@ -1404,13 +1404,13 @@ function renderChart(display) {
       <g class="series-line" data-series="${series.id}">
       <polyline fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" points="${points}" />
       <circle cx="${x(series.values.length - 1)}" cy="${y(lastPoint.value)}" r="3" fill="${color}" />
-      <circle class="hover-point" cx="${x(hoverIndex)}" cy="${y(hoverPoint.value)}" r="${state.hoverIndex == null ? 0 : 4}" fill="#0b1814" stroke="${color}" stroke-width="2" /></g>
+      <circle class="hover-point" cx="${x(hoverIndex)}" cy="${y(hoverPoint.value)}" r="${state.hoverIndex == null ? 0 : 4}" fill="var(--raised)" stroke="${color}" stroke-width="2" /></g>
     `);
   });
 
   const hoverX = x(hoverIndex);
   svg.insertAdjacentHTML("beforeend", `
-    <line id="chartCursor" opacity="${state.hoverIndex == null ? 0 : 1}" x1="${hoverX}" y1="${pad.top}" x2="${hoverX}" y2="${height - pad.bottom}" stroke="rgba(154,187,175,0.35)" stroke-dasharray="4 5" />
+    <line id="chartCursor" opacity="${state.hoverIndex == null ? 0 : 1}" x1="${hoverX}" y1="${pad.top}" x2="${hoverX}" y2="${height - pad.bottom}" stroke="var(--chart-reference)" stroke-dasharray="4 5" />
     <rect id="chartOverlay" tabindex="0" role="slider" aria-label="${t("Explore monthly chart")}" aria-valuemin="0" aria-valuemax="${dates.length - 1}" aria-valuenow="${hoverIndex}" aria-valuetext="${formatMonth(dates[hoverIndex])}" x="${pad.left}" y="${pad.top}" width="${chartWidth}" height="${chartHeight}" fill="transparent" style="cursor:crosshair;touch-action:pan-y"></rect>
   `);
 

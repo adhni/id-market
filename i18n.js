@@ -1,5 +1,7 @@
 // English copy is the translation key. Data IDs and values remain language-independent.
 const INDONESIAN = {
+  "Switch to light mode": "Beralih ke mode terang",
+  "Switch to dark mode": "Beralih ke mode gelap",
   "Indonesian stock filters": "Filter saham Indonesia",
   "Industry": "Industri",
   "Index membership": "Keanggotaan indeks",
@@ -365,6 +367,7 @@ function applyLanguage() {
   document.documentElement.lang = language;
   document.title = language === 'id' ? 'ID Market — sudut pandang lebih luas' : 'ID Market — a wider perspective';
   staticTranslations.forEach(update => update());
+  if (typeof updateThemeControl === "function") updateThemeControl();
   document.querySelectorAll('[data-language]').forEach(button => {
     const active = button.dataset.language === language;
     button.classList.toggle('active', active);
