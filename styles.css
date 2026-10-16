@@ -85,6 +85,8 @@ select:hover { border-color: #4c6659; }
 .stock-toggle-dropdown > summary > span:first-child { font-size: 18px; font-weight: 400; }
 .asset-count { margin-left: auto; min-width: 22px; padding: 2px 5px; text-align: center; border-left: 1px solid #99b639; font: 11px var(--mono); }
 .stock-toggle-panel, .date-panel { position: absolute; z-index: 20; top: calc(100% + 10px); left: 0; width: 450px; padding: 18px; background: #102019; border: 1px solid #405648; border-radius: 12px; box-shadow: 0 22px 60px #0009; }
+.stock-toggle-panel { max-height: min(760px, 80dvh); overflow-y: auto; overscroll-behavior: contain; }
+.stock-toggle-panel:has(.idx-filters[open]) .stock-toggle-list { max-height: 220px; }
 .picker-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; font-size: 15px; }
 .icon-button { border: none; background: none; color: var(--muted); width: 28px; height: 28px; font-size: 24px; }
 .icon-button:hover { color: var(--text); }
@@ -167,6 +169,58 @@ h2 { font-size: 23px; font-weight: 600; letter-spacing: -.8px; line-height: 1.3;
 .interaction-hint { display: flex; align-items: center; gap: 5px; margin-top: 10px; color: #8da296; font-size: 11px; }
 .interaction-hint > span:first-child { color: var(--mint); font-size: 15px; }
 .results-empty { font-size: 12px; line-height: 1.8; color: var(--muted); padding: 30px 0; }
+.company-fundamentals { margin-top: 26px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.company-fundamentals > summary { display: flex; align-items: center; justify-content: space-between; padding: 21px 0; color: #becdc4; font-size: 12px; font-weight: 600; }
+.fundamentals-content { padding: 0 0 24px; }
+.fundamentals-heading { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px 20px; margin-bottom: 18px; color: var(--muted); font-size: 12px; line-height: 1.7; }
+.fundamentals-date { color: #becdc4; font-family: var(--mono); font-size: 11px; }
+.fundamentals-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.fundamental-card { min-width: 0; padding: 20px; border: 1px solid var(--line); border-radius: 10px; background: rgba(255,255,255,.015); }
+.fundamental-card h3 { font: 500 14px var(--mono); color: var(--mint); }
+.fundamental-company { margin: 7px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.fundamental-industry { color: #9db6a9; font-size: 11px; line-height: 1.7; margin-top: 7px; }
+.fundamental-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 12px; margin-top: 18px; }
+.fundamental-size { grid-column: 1 / -1; display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid var(--line-soft); }
+.fundamental-card dt { color: var(--muted); font-size: 11px; margin-bottom: 7px; }
+.fundamental-card dd { margin: 0; font: 500 18px var(--mono); overflow-wrap: anywhere; }
+.fundamental-card .muted { font-size: 12px; line-height: 1.7; }
+.fundamental-details { margin-top: 20px; padding-top: 12px; border-top: 1px solid var(--line-soft); }
+.fundamental-details > summary { display: flex; justify-content: space-between; align-items: center; min-height: 32px; font-size: 11px; color: #becdc4; }
+.fundamental-details > summary span { font-size: 17px; color: var(--mint); }
+.fundamental-details[open] > summary span { transform: rotate(45deg); }
+.fundamental-extra { padding-top: 10px; }
+.fundamental-detail-label { color: #becdc4; font-size: 11px; margin-bottom: 8px; }
+.index-memberships { display: flex; flex-wrap: wrap; gap: 6px; color: var(--muted); font-size: 11px; }
+.index-memberships span { padding: 4px 7px; border: 1px solid var(--line); border-radius: 4px; font: 10px var(--mono); color: #becdc4; }
+.fundamental-detail-note { margin-top: 8px; color: var(--muted); font-size: 11px; line-height: 1.8; }
+.fundamental-leverage { padding-top: 18px; }
+.fundamental-detail-value { font: 500 17px var(--mono); }
+.idx-filters { margin-bottom: 10px; border: 1px solid var(--line); border-radius: 6px; }
+.idx-filters > summary { display: flex; align-items: center; justify-content: space-between; min-height: 40px; padding: 8px 10px; gap: 8px; font-size: 11px; color: #becdc4; }
+#idxFilterCount { font-size: 10px; color: var(--mint); }
+.idx-filter-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; padding: 0 10px 10px; }
+.idx-filter-fields label { min-width: 0; font-size: 10px; color: var(--muted); }
+.idx-filter-fields select { display: block; width: 100%; height: 40px; margin-top: 6px; font-size: 11px; }
+.idx-filter-footer { padding: 0 10px 12px; }
+.idx-filter-footer p { color: var(--muted); font-size: 10px; line-height: 1.7; }
+.idx-filter-footer button { margin-top: 8px; min-height: 36px; font-size: 11px; }
+.stock-toggle-copy .picker-industry { color: #9db6a9; font-size: 10px; }
+.fundamentals-help { margin-top: 20px; color: var(--muted); font-size: 12px; line-height: 1.8; }
+.fundamentals-help > summary { width: fit-content; color: #becdc4; text-decoration: underline; text-underline-offset: 3px; }
+.fundamentals-help dl { display: grid; gap: 12px; margin: 16px 0; max-width: 850px; }
+.fundamentals-help dt { color: #becdc4; font-weight: 600; }
+.fundamentals-help dd { margin: 0; }
+.fundamentals-source, .fundamentals-method { color: var(--muted); font-size: 11px; line-height: 1.8; margin-top: 14px; }
+.fundamentals-source { display: flex; flex-wrap: wrap; gap: 4px 18px; }
+.fundamentals-source a, .fundamentals-method a { color: var(--mint); text-underline-offset: 3px; }
+@media (max-width: 640px) {
+  .fundamentals-cards { grid-template-columns: 1fr; }
+  .fundamental-card { padding: 16px; }
+  .fundamental-card dd { font-size: 17px; }
+  .fundamental-details > summary, .idx-filters > summary { min-height: 44px; }
+  .idx-filter-fields select { height: 44px; font-size: 16px; }
+  .idx-filter-footer button { min-height: 44px; }
+}
 .change-diagnostics, .data-sources { position: relative; border-bottom: 1px solid var(--line); }
 .change-diagnostics { margin-top: 26px; border-top: 1px solid var(--line); }
 .change-diagnostics > summary, .data-sources > summary { display: flex; align-items: center; justify-content: space-between; padding: 21px 0; font-size: 12px; font-weight: 600; color: #becdc4; }

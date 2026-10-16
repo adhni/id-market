@@ -72,6 +72,7 @@ const path = require('node:path');
   await page.click('#changeDiagnostics > summary');
   assert.match(await page.locator('#diagnosticBody').innerText(),/Emas/);
   await page.click('#changeDiagnostics > summary');
+  await page.locator('#chartOverlay').scrollIntoViewIfNeeded();
   const overlay=await page.locator('#chartOverlay').boundingBox();
   await page.mouse.move(overlay.x+overlay.width*.6,overlay.y+overlay.height*.4);
   assert.match(await page.locator('#chartTooltip').innerText(),/Emas/);
