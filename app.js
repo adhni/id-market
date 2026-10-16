@@ -36,6 +36,7 @@ const state = {
   metadata: [],
   seriesMap: new Map(),
   metadataMap: new Map(),
+  fundamentals: null,
   selectedSeries: new Set(DEFAULT_SERIES),
   inflation: false,
   mode: "growth",
@@ -48,6 +49,8 @@ const state = {
   pinnedSeries: null,
   assetCategory: "all",
   assetCountry: "all",
+  assetIndustry: "all",
+  assetIndex: "all",
   collection: "indonesia",
   activePreset: "default",
   resultMode: "percent",
@@ -313,6 +316,17 @@ function setupControls() {
   const countrySelect = document.getElementById("assetCountry");
   countries.forEach((country) => countrySelect.add(new Option(t(country), country)));
   countrySelect.addEventListener("change", () => { state.assetCountry = countrySelect.value; renderStockToggleDropdown(); });
+  for (const [id, key] of [["assetIndustry", "assetIndustry"], ["assetIndex", "assetIndex"]]) {
+    document.getElementById(id).addEventListener("change", event => {
+      state[key] = event.target.value;
+      renderStockToggleDropdown();
+    });
+  }
+  document.getElementById("clearStockFilters").addEventListener("click", () => {
+    state.assetIndustry = state.assetIndex = "all";
+    renderStockToggleDropdown();
+    document.getElementById("assetIndustry").focus({preventScroll: true});
+  });
   document.querySelectorAll("[data-collection]").forEach((button) => {
     button.addEventListener("click", () => { state.collection = button.dataset.collection; renderCollections(); render(); });
   });
@@ -343,6 +357,7 @@ function setupControls() {
     state.benchmark = "IDR";
     state.assetCategory = "all";
     state.assetCountry = "all";
+    state.assetIndustry = state.assetIndex = "all";
     state.collection = "indonesia";
     document.getElementById("assetCountry").value = "all";
     renderCollections();
@@ -378,20 +393,20 @@ function setupControls() {
       document.querySelector(`#${panel} summary`).focus();
     });
   }
-  document.querySelectorAll(".toolbar details").forEach((panel) => {
+  document.querySelectorAll(".toolbar details:not(.idx-filters)").forEach((panel) => {
     panel.addEventListener("toggle", () => {
       if (panel.open) {
         document.getElementById("moreOptions").open = false;
-        document.querySelectorAll(".toolbar details").forEach((other) => { if (other !== panel) other.open = false; });
+        document.querySelectorAll(".toolbar details:not(.idx-filters)").forEach((other) => { if (other !== panel) other.open = false; });
         if (panel.id === "stockToggleDropdown") document.getElementById("stockToggleSearch").focus();
       }
     });
   });
   document.getElementById("moreOptions").addEventListener("toggle", (event) => {
-    if (event.target.open) document.querySelectorAll(".toolbar details").forEach(panel => { panel.open = false; });
+    if (event.target.open) document.querySelectorAll(".toolbar details:not(.idx-filters)").forEach(panel => { panel.open = false; });
   });
   document.addEventListener("click", (event) => {
-    document.querySelectorAll(".toolbar details[open]").forEach((panel) => {
+    document.querySelectorAll(".toolbar details[open]:not(.idx-filters)").forEach((panel) => {
       if (!panel.contains(event.target)) panel.open = false;
     });
     const options = document.getElementById("moreOptions");
@@ -405,7 +420,7 @@ function setupControls() {
       document.getElementById("moreOptions").open = false;
       document.querySelector("#moreOptions summary").focus();
     }
-    if (event.key === "Escape") document.querySelectorAll(".toolbar details[open]").forEach((panel) => {
+    if (event.key === "Escape") document.querySelectorAll(".toolbar details[open]:not(.idx-filters)").forEach((panel) => {
       panel.open = false;
       panel.querySelector("summary").focus();
     });
@@ -531,10 +546,52 @@ function renderBenchmarkOptions() {
   }
 }
 
+// Keep the offered index filters small and recognizable. The source's indexCode
+// also includes listing boards such as MBX/DBX; those are not index memberships.
+const STOCK_INDEX_FILTERS = ["LQ45", "IDX30", "IDX80", "KOMPAS100", "ISSI", "JII", "JII70"];
+
+function stockFiltersAvailable() {
+  return ["all", "stock"].includes(state.assetCategory) && ["all", "Indonesia"].includes(state.assetCountry) &&
+    (state.fundamentals?.stocks || []).some(stock => stock.industry || stock.index_memberships?.length);
+}
+
+function matchesStockFilters(meta, stock, search) {
+  const searchText = [meta.short_name, t(meta.short_name), meta.display_name, t(meta.display_name), meta.country, t(meta.country),
+    meta.series_id, meta.sector, meta.category, meta.exchange, meta.currency,
+    stock?.sector, t(stock?.sector || ""), stock?.industry, t(stock?.industry || ""),
+    ...(stock?.index_memberships || []).filter(code => STOCK_INDEX_FILTERS.includes(code))].join(" ").toLowerCase();
+  if (!searchText.includes(search)) return false;
+  if (!stockFiltersAvailable()) return true;
+  return (state.assetIndustry === "all" || stock?.industry === state.assetIndustry) &&
+    (state.assetIndex === "all" || stock?.index_memberships?.includes(state.assetIndex));
+}
+
+function renderStockFilters() {
+  const panel = document.getElementById("idxFilters");
+  panel.hidden = !stockFiltersAvailable();
+  if (panel.hidden) return;
+  const snapshots = state.fundamentals.stocks;
+  const industries = [...new Set(snapshots.map(stock => stock.industry).filter(Boolean))].sort((a, b) => t(a).localeCompare(t(b), locale()));
+  const indexes = STOCK_INDEX_FILTERS.filter(code => snapshots.some(stock => stock.index_memberships?.includes(code)));
+  if (!industries.includes(state.assetIndustry)) state.assetIndustry = "all";
+  if (!indexes.includes(state.assetIndex)) state.assetIndex = "all";
+  const industrySelect = document.getElementById("assetIndustry");
+  industrySelect.replaceChildren(new Option(t("All industries"), "all"), ...industries.map(name => new Option(t(name), name)));
+  industrySelect.value = state.assetIndustry;
+  const indexSelect = document.getElementById("assetIndex");
+  indexSelect.replaceChildren(new Option(t("Any index"), "all"), ...indexes.map(code => new Option(code, code)));
+  indexSelect.value = state.assetIndex;
+  const active = Number(state.assetIndustry !== "all") + Number(state.assetIndex !== "all");
+  document.getElementById("idxFilterCount").textContent = active ? t("{0} active", active) : "";
+  document.getElementById("clearStockFilters").hidden = !active;
+}
+
 function renderStockToggleDropdown() {
   const host = document.getElementById("stockToggleList");
   document.getElementById("stockToggleSummary").innerHTML = `<span aria-hidden="true">＋</span> ${t("Add assets")} <span class="asset-count">${state.selectedSeries.size}</span>`;
   const search = document.getElementById("stockToggleSearch").value.trim().toLowerCase();
+  renderStockFilters();
+  const snapshots = new Map((state.fundamentals?.stocks || []).map(stock => [stock.series_id, stock]));
   document.querySelectorAll("#assetFilters button").forEach((button) => {
     const active = state.assetCategory === button.dataset.category;
     button.classList.toggle("active", active);
@@ -542,7 +599,7 @@ function renderStockToggleDropdown() {
   });
   const rows = state.metadata.filter((row) => (state.assetCategory === "all" || row.category === state.assetCategory) &&
     (state.assetCountry === "all" || row.country === state.assetCountry) &&
-    `${t(row.short_name)} ${t(row.display_name)} ${t(row.country)} ${row.series_id} ${row.display_name} ${row.short_name} ${row.sector} ${row.category} ${row.country} ${row.exchange} ${row.currency}`.toLowerCase().includes(search)
+    matchesStockFilters(row, snapshots.get(row.series_id), search)
   ).sort((a, b) => Number(state.selectedSeries.has(b.series_id)) - Number(state.selectedSeries.has(a.series_id)) || a.short_name.localeCompare(b.short_name));
   host.innerHTML = "";
   for (const row of rows) {
@@ -550,7 +607,7 @@ function renderStockToggleDropdown() {
     label.className = "stock-toggle-item";
     label.innerHTML = `<input type="checkbox" value="${escapeHTML(row.series_id)}" ${state.selectedSeries.has(row.series_id) ? "checked" : ""} />
       <span class="picker-swatch" style="background:${seriesColor(row.series_id)}"></span>
-      <span class="stock-toggle-copy"><strong>${escapeHTML(t(row.short_name))}</strong><span>${escapeHTML(t(row.display_name))} · ${escapeHTML(row.exchange)} · ${escapeHTML(row.currency)}</span></span><span class="asset-category">${escapeHTML(t(row.category === "fx" ? "FX" : row.category))}</span>`;
+      <span class="stock-toggle-copy"><strong>${escapeHTML(t(row.short_name))}</strong><span>${escapeHTML(t(row.display_name))} · ${escapeHTML(row.exchange)} · ${escapeHTML(row.currency)}</span>${snapshots.get(row.series_id)?.industry ? `<span class="picker-industry">${escapeHTML(t(snapshots.get(row.series_id).industry))}</span>` : ""}</span><span class="asset-category">${escapeHTML(t(row.category === "fx" ? "FX" : row.category))}</span>`;
     label.querySelector("input").addEventListener("change", (event) => {
       if (event.target.checked) state.selectedSeries.add(row.series_id);
       else state.selectedSeries.delete(row.series_id);
@@ -563,7 +620,7 @@ function renderStockToggleDropdown() {
     });
     host.appendChild(label);
   }
-  if (!rows.length) host.innerHTML = `<p class="picker-empty">${t("No matches. Try another name or category.")}</p>`;
+  if (!rows.length) host.innerHTML = `<p class="picker-empty">${t(stockFiltersAvailable() && (state.assetIndustry !== "all" || state.assetIndex !== "all") ? "No matches. Change the search or clear the stock filters." : "No matches. Try another name or category.")}</p>`;
   document.getElementById("selectionAdvice").textContent = state.selectedSeries.size > 5 ? t("Try fewer assets for an easier comparison.") : t("Compare 2–5 assets for a clearer view.");
 }
 
@@ -748,6 +805,7 @@ function render() {
   renderLegend(display.series);
   renderChart(display);
   renderSummary(display.series);
+  renderFundamentals();
   renderDiagnostics(display);
   updateSnapshot(display);
   renderWorldOverview();
@@ -903,6 +961,109 @@ function describeComparison(series) {
   const last = results.at(-1);
   if (results.length > 1 && first.change - last.change >= 0.05) text += " " + describe(last);
   return text;
+}
+
+function parseFundamentals(text) {
+  try {
+    const snapshot = JSON.parse(text);
+    if (![1, 2].includes(snapshot?.schema_version) || !Array.isArray(snapshot.stocks) ||
+        typeof snapshot.retrieved_at !== "string" || !Number.isFinite(Date.parse(snapshot.retrieved_at))) return null;
+    const ids = new Set();
+    for (const stock of snapshot.stocks) {
+      if (!stock || typeof stock.series_id !== "string" || !stock.series_id || ids.has(stock.series_id)) return null;
+      ids.add(stock.series_id);
+      for (const field of ["market_cap_idr", "pe_ttm", "pb", "roe_pct", ...(snapshot.schema_version === 2 ? ["roa_pct", "liabilities_equity"] : [])]) {
+        const value = stock[field];
+        if (value !== null && (typeof value !== "number" || !Number.isFinite(value))) return null;
+      }
+      if (stock.market_cap_idr !== null && stock.market_cap_idr <= 0) return null;
+      if (snapshot.schema_version === 2) {
+        for (const field of ["sector", "industry"]) {
+          if (stock[field] !== null && (typeof stock[field] !== "string" || !stock[field].trim())) return null;
+        }
+        if (stock.index_memberships !== null && (!Array.isArray(stock.index_memberships) ||
+            stock.index_memberships.some(code => typeof code !== "string" || !code.trim()) ||
+            new Set(stock.index_memberships).size !== stock.index_memberships.length)) return null;
+      }
+    }
+    return snapshot;
+  } catch { return null; }
+}
+
+function fundamentalMetric(stock, metric) {
+  const value = stock?.[metric];
+  if (typeof value !== "number" || !Number.isFinite(value)) return {text: t("Not available")};
+  if (((metric === "pe_ttm" || metric === "pb") && value <= 0) ||
+      (["roe_pct", "liabilities_equity"].includes(metric) && stock.pb != null && stock.pb < 0) ||
+      (metric === "liabilities_equity" && value < 0)) {
+    return {text: t("Not meaningful")};
+  }
+  if (metric === "market_cap_idr") return {
+    text: new Intl.NumberFormat(locale(), {style: "currency", currency: "IDR", notation: "compact", maximumFractionDigits: 2}).format(value),
+    title: new Intl.NumberFormat(locale(), {style: "currency", currency: "IDR", maximumFractionDigits: 0}).format(value),
+  };
+  return {text: new Intl.NumberFormat(locale(), {maximumFractionDigits: 2}).format(value) + (["roe_pct", "roa_pct"].includes(metric) ? "%" : "×")};
+}
+
+function renderFundamentals() {
+  const host = document.getElementById("fundamentalsCards");
+  if (!host) return;
+  const stocks = [...state.selectedSeries].map(id => state.metadataMap.get(id)).filter(meta => meta?.category === "stock");
+  const snapshot = state.fundamentals;
+  const collected = snapshot?.retrieved_at && new Date(snapshot.retrieved_at);
+  document.getElementById("fundamentalsDate").textContent = collected && Number.isFinite(collected.getTime())
+    ? t("Collected {0}", new Intl.DateTimeFormat(locale(), {day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Jakarta"}).format(collected)) : "";
+  const byId = new Map((snapshot?.stocks || []).map(stock => [stock.series_id, stock]));
+  const expanded = new Set([...host.querySelectorAll(".fundamental-details[open]")].map(details => details.dataset.company));
+  host.replaceChildren();
+  if (!stocks.length) {
+    const note = document.createElement("p");
+    note.className = "muted";
+    note.textContent = t("Add a stock to see its company fundamentals.");
+    host.appendChild(note);
+    return;
+  }
+  const metrics = [["market_cap_idr", "Market cap"], ["pe_ttm", "P/E (TTM)"], ["pb", "P/B"], ["roe_pct", "ROE (TTM)"], ["roa_pct", "ROA (TTM)"]];
+  for (const meta of stocks) {
+    const stock = byId.get(meta.series_id);
+    const card = document.createElement("article");
+    card.className = "fundamental-card";
+    card.dataset.stock = meta.series_id;
+    card.setAttribute("aria-labelledby", `fundamental-${meta.series_id}`);
+    card.innerHTML = `<h3 id="fundamental-${escapeHTML(meta.series_id)}">${escapeHTML(meta.short_name)}</h3><p class="fundamental-company">${escapeHTML(meta.display_name)}</p>`;
+    if (!stock) {
+      const note = document.createElement("p");
+      note.className = "muted";
+      note.textContent = t(meta.country === "Indonesia" ? "Snapshot unavailable. Price comparisons still work." : "Fundamentals currently cover Indonesian stocks.");
+      card.appendChild(note);
+    } else {
+      if (stock.industry || stock.sector) {
+        const industry = document.createElement("p");
+        industry.className = "fundamental-industry";
+        industry.textContent = [...new Set([stock.sector, stock.industry].filter(Boolean))].map(label => t(label)).join(" · ");
+        card.appendChild(industry);
+      }
+      const list = document.createElement("dl");
+      list.className = "fundamental-metrics";
+      list.innerHTML = metrics.map(([key, label]) => {
+        const metric = fundamentalMetric(stock, key);
+        return `<div${key === "market_cap_idr" ? ' class="fundamental-size"' : ""}><dt>${escapeHTML(t(label))}</dt><dd${metric.title ? ` title="${escapeHTML(metric.title)}"` : ""}>${escapeHTML(metric.text)}</dd></div>`;
+      }).join("");
+      card.appendChild(list);
+      const details = document.createElement("details");
+      details.className = "fundamental-details";
+      details.dataset.company = meta.series_id;
+      details.open = expanded.has(meta.series_id);
+      const memberships = STOCK_INDEX_FILTERS.filter(code => stock.index_memberships?.includes(code));
+      details.innerHTML = `<summary aria-label="${escapeHTML(t("Company details for {0}", meta.short_name))}">${escapeHTML(t("Company details"))}<span aria-hidden="true">+</span></summary>
+        <div class="fundamental-extra"><p class="fundamental-detail-label">${escapeHTML(t("Index memberships"))}</p>
+        <p class="index-memberships">${memberships.length ? memberships.map(code => `<span>${escapeHTML(code)}</span>`).join("") : escapeHTML(t(stock.index_memberships == null ? "Not available" : "No membership reported for the supported index filters."))}</p>
+        <p class="fundamental-detail-note">${escapeHTML(t("Shown for the supported index filters, from the collected snapshot. Membership can change."))}</p>
+        ${stock.industry && stock.industry !== "Banks" ? `<div class="fundamental-leverage"><p class="fundamental-detail-label">${escapeHTML(t("Liabilities / equity"))}</p><p class="fundamental-detail-value">${escapeHTML(fundamentalMetric(stock, "liabilities_equity").text)}</p><p class="fundamental-detail-note">${escapeHTML(t("Total liabilities divided by equity, including more than interest-bearing debt. Compare companies in the same industry."))}</p></div>` : ""}</div>`;
+      card.appendChild(details);
+    }
+    host.appendChild(card);
+  }
 }
 
 function renderDiagnostics(display) {
@@ -1481,12 +1642,16 @@ async function shareComparison() {
 
 async function init() {
   setupLanguage();
-  const [seriesText, metadataText, inflationText] = await Promise.all([
+  const [seriesText, metadataText, inflationText, fundamentalsText] = await Promise.all([
     loadTextWithFallback("data/series.csv", "embedded-series-csv"),
     loadTextWithFallback("data/metadata.csv", "embedded-metadata-csv"),
     loadTextWithFallback("data/inflation.csv", "embedded-inflation-csv"),
+    loadTextWithFallback("data/fundamentals.json", "embedded-fundamentals-json").catch(() => "null"),
   ]);
 
+  // An unavailable optional snapshot must not prevent price comparisons loading.
+  state.fundamentals = parseFundamentals(fundamentalsText) ||
+    parseFundamentals(document.getElementById("embedded-fundamentals-json")?.textContent);
   state.rawSeries = parseCSV(seriesText);
   state.metadata = parseCSV(metadataText);
   const { grouped, metaMap } = buildMaps(state.rawSeries, state.metadata);
